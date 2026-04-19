@@ -11,11 +11,18 @@ class LedgerView(QWidget):
     def init_ui(self):
         layout = QVBoxLayout(self)
         
+        # --- Top Balance Label ---
+        self.balance_header = QLabel("Current Balance: ₹0.00")
+        self.balance_header.setStyleSheet("font-size: 22px; font-weight: bold; color: #27ae60; margin-bottom: 10px;")
+        self.balance_header.setAlignment(Qt.AlignCenter)
+        layout.addWidget(self.balance_header)
+        
         # Controls
         controls_layout = QHBoxLayout()
         
         controls_layout.addWidget(QLabel("Supplier:"))
         self.supplier_combo = QComboBox()
+        self.supplier_combo.currentIndexChanged.connect(self.update_balance_header)
         controls_layout.addWidget(self.supplier_combo)
         
         controls_layout.addWidget(QLabel("From:"))
@@ -51,6 +58,20 @@ class LedgerView(QWidget):
         suppliers = self.db.get_all_suppliers()
         for sup in suppliers:
             self.supplier_combo.addItem(sup[1], sup[0])
+            
+        self.update_balance_header()
+            
+    def update_balance_header(self):
+        supplier_id = self.supplier_combo.currentData()
+        if supplier_id:
+            sup = self.db.get_supplier_by_id(supplier_id)
+            if sup:
+                balance = sup[2]
+                color = "#27ae60" if balance >= 0 else "#e74c3c"
+                self.balance_header.setStyleSheet(f"font-size: 22px; font-weight: bold; color: {color}; margin-bottom: 10px;")
+                self.balance_header.setText(f"Current Balance: ₹{balance:.2f}")
+        else:
+            self.balance_header.setText("Current Balance: ₹0.00")
             
     def generate_ledger(self):
         supplier_id = self.supplier_combo.currentData()
@@ -95,12 +116,20 @@ class LedgerView(QWidget):
             
             cr_item = QTableWidgetItem(f"{credit:.2f}" if credit else "")
             cr_item.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
+            # Styling for credit
+            if credit:
+                cr_item.setForeground(Qt.darkGreen)
             self.table.setItem(row, 3, cr_item)
             
             db_item = QTableWidgetItem(f"{debit:.2f}" if debit else "")
             db_item.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
+            # Styling for debit
+            if debit:
+                db_item.setForeground(Qt.red)
             self.table.setItem(row, 4, db_item)
             
             bal_item = QTableWidgetItem(f"{current_balance:.2f}")
             bal_item.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
+            if current_balance < 0:
+                bal_item.setForeground(Qt.red)
             self.table.setItem(row, 5, bal_item)

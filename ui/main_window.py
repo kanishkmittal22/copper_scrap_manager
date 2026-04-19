@@ -4,7 +4,9 @@ from PyQt5.QtCore import Qt
 # Import views
 from ui.views.supplier_view import SupplierView
 from ui.views.procurement_view import ProcurementView
+from ui.views.procurement_management_view import ProcurementManagementView
 from ui.views.payment_view import PaymentView
+from ui.views.payment_management_view import PaymentManagementView
 from ui.views.ledger_view import LedgerView
 
 class MainWindow(QMainWindow):
@@ -40,13 +42,17 @@ class MainWindow(QMainWindow):
         self.nav_buttons = []
         
         self.btn_suppliers = self.create_nav_button("🏢 Suppliers", 0)
-        self.btn_procurement = self.create_nav_button("🛒 Procurement", 1)
-        self.btn_payments = self.create_nav_button("💳 Payments", 2)
-        self.btn_ledger = self.create_nav_button("📊 Purchase Ledger", 3)
+        self.btn_procurement = self.create_nav_button("🛒 New Procurement", 1)
+        self.btn_proc_mgmt = self.create_nav_button("📋 Manage Procurements", 2)
+        self.btn_payments = self.create_nav_button("💳 New Payment", 3)
+        self.btn_pay_mgmt = self.create_nav_button("💸 Manage Payments", 4)
+        self.btn_ledger = self.create_nav_button("📊 Purchase Ledger", 5)
         
         sidebar_layout.addWidget(self.btn_suppliers)
         sidebar_layout.addWidget(self.btn_procurement)
+        sidebar_layout.addWidget(self.btn_proc_mgmt)
         sidebar_layout.addWidget(self.btn_payments)
+        sidebar_layout.addWidget(self.btn_pay_mgmt)
         sidebar_layout.addWidget(self.btn_ledger)
         sidebar_layout.addStretch()
         
@@ -71,12 +77,16 @@ class MainWindow(QMainWindow):
         # Add Views
         self.supplier_view = SupplierView(self.db)
         self.procurement_view = ProcurementView(self.db)
+        self.proc_mgmt_view = ProcurementManagementView(self.db)
         self.payment_view = PaymentView(self.db)
+        self.pay_mgmt_view = PaymentManagementView(self.db)
         self.ledger_view = LedgerView(self.db)
         
         self.stacked_widget.addWidget(self.supplier_view)
         self.stacked_widget.addWidget(self.procurement_view)
+        self.stacked_widget.addWidget(self.proc_mgmt_view)
         self.stacked_widget.addWidget(self.payment_view)
+        self.stacked_widget.addWidget(self.pay_mgmt_view)
         self.stacked_widget.addWidget(self.ledger_view)
         
         content_layout.addWidget(self.stacked_widget)
@@ -99,7 +109,14 @@ class MainWindow(QMainWindow):
         self.stacked_widget.setCurrentIndex(index)
         
         # Update header
-        titles = ["Supplier Management", "Scrap Procurement", "Payments", "Purchase Ledger"]
+        titles = [
+            "Supplier Management", 
+            "New Scrap Procurement", 
+            "Manage Procurement Entries",
+            "New Payment Entry", 
+            "Manage Payment Entries",
+            "Purchase Ledger"
+        ]
         self.header_label.setText(titles[index])
         
         # Refresh data in the current view

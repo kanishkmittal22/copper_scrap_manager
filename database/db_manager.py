@@ -257,3 +257,200 @@ class DatabaseManager:
             pay_sum = cursor.fetchone()[0] or 0
             
             return base_ob + proc_sum - pay_sum
+
+    # --- Extended Procurement Operations ---
+    def get_procurements(self, supplier_id=None, date=None):
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            query = """
+                SELECT p.id, p.entry_number, p.date, s.name, p.base_amount, p.net_adjustment, p.grand_total, s.id 
+                FROM procurements p
+                JOIN suppliers s ON p.supplier_id = s.id
+                WHERE 1=1
+            """
+            params = []
+            if supplier_id:
+                query += " AND p.supplier_id = ?"
+                params.append(supplier_id)
+            if date:
+                query += " AND p.date = ?"
+                params.append(date)
+            query += " ORDER BY p.date DESC, p.id DESC"
+            
+            cursor.execute(query, tuple(params))
+            return cursor.fetchall()
+            
+    def get_procurement_by_id(self, procurement_id):
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM procurements WHERE id = ?", (procurement_id,))
+            procurement = cursor.fetchone()
+            if not procurement:
+                return None
+            
+            # Map columns to dictionary
+            col_names = [description[0] for description in cursor.description]
+            data = dict(zip(col_names, procurement))
+            
+            cursor.execute("SELECT * FROM procurement_items WHERE procurement_id = ?", (procurement_id,))
+            items = []
+            item_cols = [description[0] for description in cursor.description]
+            for row in cursor.fetchall():
+                items.append(dict(zip(item_cols, row)))
+                
+            return {"data": data, "items": items}
+            
+    def delete_procurement(self, procurement_id):
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            try:
+                # Get the grand_total and supplier_id
+                cursor.execute("SELECT grand_total, supplier_id FROM procurements WHERE id = ?", (procurement_id,))
+                row = cursor.fetchone()
+                if not row:
+                    return False, "Procurement not found."
+                grand_total, supplier_id = row
+                
+                # Delete procurement (cascade will delete items)
+                cursor.execute("DELETE FROM procurements WHERE id = ?", (procurement_id,))
+                
+                # Reverse the balance: subtract grand_total
+                cursor.execute(
+                    "UPDATE suppliers SET current_balance = current_balance - ? WHERE id = ?",
+                    (grand_total, supplier_id)
+                )
+                
+                conn.commit()
+                return True, "Procurement deleted successfully."
+            except Exception as e:
+                conn.rollback()
+                return False, f"Error deleting procurement: {str(e)}"
+                
+    def update_procurement(self, procurement_id, data, items):
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            try:
+                # 1. Get old details to reverse balance
+                cursor.execute("SELECT grand_total, supplier_id FROM procurements WHERE id = ?", (procurement_id,))
+                row = cursor.fetchone()
+                if not row:
+                    return False, "Procurement not found."
+                old_grand_total, old_supplier_id = row
+                
+                # 2. Reverse old balance
+                cursor.execute("UPDATE suppliers SET current_balance = current_balance - ? WHERE id = ?", (old_grand_total, old_supplier_id))
+                
+                # 3. Update main procurement
+                cursor.execute('''
+                    UPDATE procurements 
+                    SET date=?, supplier_id=?, total_weight=?, rate=?, base_amount=?, remarks=?, net_adjustment=?, grand_total=?
+                    WHERE id=?
+                ''', (
+                    data['date'], data['supplier_id'], data['total_weight'], data['rate'], 
+                    data['base_amount'], data['remarks'], data['net_adjustment'], data['grand_total'],
+                    procurement_id
+                ))
+                
+                # 4. Delete old items and insert new ones
+                cursor.execute("DELETE FROM procurement_items WHERE procurement_id = ?", (procurement_id,))
+                for item in items:
+                    cursor.execute('''
+                        INSERT INTO procurement_items 
+                        (procurement_id, scrap_type, weight, rate, amount, adjustment_type)
+                        VALUES (?, ?, ?, ?, ?, ?)
+                    ''', (
+                        procurement_id, item['scrap_type'], item['weight'], 
+                        item['rate'], item['amount'], item['adjustment_type']
+                    ))
+                
+                # 5. Apply new balance
+                cursor.execute("UPDATE suppliers SET current_balance = current_balance + ? WHERE id = ?", (data['grand_total'], data['supplier_id']))
+                
+                conn.commit()
+                return True, "Procurement updated successfully."
+            except Exception as e:
+                conn.rollback()
+                return False, f"Error updating procurement: {str(e)}"
+
+    # --- Extended Payment Operations ---
+    def get_payments(self, supplier_id=None, date=None):
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            query = """
+                SELECT p.id, p.date, s.name, p.amount, p.remarks, s.id
+                FROM payments p
+                JOIN suppliers s ON p.supplier_id = s.id
+                WHERE 1=1
+            """
+            params = []
+            if supplier_id:
+                query += " AND p.supplier_id = ?"
+                params.append(supplier_id)
+            if date:
+                query += " AND p.date = ?"
+                params.append(date)
+            query += " ORDER BY p.date DESC, p.id DESC"
+            
+            cursor.execute(query, tuple(params))
+            return cursor.fetchall()
+            
+    def get_payment_by_id(self, payment_id):
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM payments WHERE id = ?", (payment_id,))
+            payment = cursor.fetchone()
+            if not payment:
+                return None
+            col_names = [description[0] for description in cursor.description]
+            return dict(zip(col_names, payment))
+            
+    def delete_payment(self, payment_id):
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            try:
+                cursor.execute("SELECT amount, supplier_id FROM payments WHERE id = ?", (payment_id,))
+                row = cursor.fetchone()
+                if not row:
+                    return False, "Payment not found."
+                amount, supplier_id = row
+                
+                cursor.execute("DELETE FROM payments WHERE id = ?", (payment_id,))
+                
+                # Reverse balance: adding amount back to supplier
+                cursor.execute(
+                    "UPDATE suppliers SET current_balance = current_balance + ? WHERE id = ?",
+                    (amount, supplier_id)
+                )
+                
+                conn.commit()
+                return True, "Payment deleted successfully."
+            except Exception as e:
+                conn.rollback()
+                return False, f"Error deleting payment: {str(e)}"
+                
+    def update_payment(self, payment_id, data):
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            try:
+                cursor.execute("SELECT amount, supplier_id FROM payments WHERE id = ?", (payment_id,))
+                row = cursor.fetchone()
+                if not row:
+                    return False, "Payment not found."
+                old_amount, old_supplier_id = row
+                
+                # Reverse old balance
+                cursor.execute("UPDATE suppliers SET current_balance = current_balance + ? WHERE id = ?", (old_amount, old_supplier_id))
+                
+                # Update payment
+                cursor.execute('''
+                    UPDATE payments SET date=?, supplier_id=?, amount=?, remarks=? WHERE id=?
+                ''', (data['date'], data['supplier_id'], data['amount'], data['remarks'], payment_id))
+                
+                # Apply new balance
+                cursor.execute("UPDATE suppliers SET current_balance = current_balance - ? WHERE id = ?", (data['amount'], data['supplier_id']))
+                
+                conn.commit()
+                return True, "Payment updated successfully."
+            except Exception as e:
+                conn.rollback()
+                return False, f"Error updating payment: {str(e)}"
