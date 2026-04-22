@@ -1,5 +1,5 @@
 from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QComboBox, 
-                             QDateEdit, QPushButton, QTableWidget, QTableWidgetItem, QHeaderView, QLabel, QMessageBox, QCheckBox, QDialog, QFormLayout, QLineEdit)
+                             QDateEdit, QPushButton, QTableWidget, QTableWidgetItem, QHeaderView, QLabel, QMessageBox, QCheckBox, QDialog, QFormLayout, QLineEdit, QCompleter)
 from PyQt5.QtCore import Qt, QDate
 
 class PaymentEditDialog(QDialog):
@@ -18,10 +18,12 @@ class PaymentEditDialog(QDialog):
         form_layout = QFormLayout()
         
         self.supplier_combo = QComboBox()
+        self.supplier_combo.setEditable(True)
         form_layout.addRow("Supplier:", self.supplier_combo)
         
         self.date_input = QDateEdit()
         self.date_input.setCalendarPopup(True)
+        self.date_input.setDisplayFormat("dd-MM-yyyy")
         form_layout.addRow("Date:", self.date_input)
         
         self.amount_input = QLineEdit()
@@ -43,9 +45,17 @@ class PaymentEditDialog(QDialog):
         layout.addLayout(btn_layout)
         
         # Populate suppliers
+        self.supplier_combo.clear()
         suppliers = self.db.get_all_suppliers()
+        names = []
         for sup in suppliers:
             self.supplier_combo.addItem(sup[1], sup[0])
+            names.append(sup[1])
+            
+        completer = QCompleter(names)
+        completer.setCaseSensitivity(Qt.CaseInsensitive)
+        completer.setFilterMode(Qt.MatchContains)
+        self.supplier_combo.setCompleter(completer)
 
     def load_data(self):
         data = self.db.get_payment_by_id(self.payment_id)
@@ -61,11 +71,14 @@ class PaymentEditDialog(QDialog):
         self.remarks_input.setText(data['remarks'] or "")
         
     def save_payment(self):
-        supplier_id = self.supplier_combo.currentData()
+        text = self.supplier_combo.currentText().strip()
+        index = self.supplier_combo.findText(text, Qt.MatchFixedString)
+        supplier_id = self.supplier_combo.itemData(index) if index >= 0 else None
+        
         amount_str = self.amount_input.text().strip()
         
         if not supplier_id or not amount_str:
-            QMessageBox.warning(self, "Validation", "Please fill required fields.")
+            QMessageBox.warning(self, "Validation", "Please select a valid supplier and fill required fields.")
             return
             
         try:
@@ -103,6 +116,7 @@ class PaymentManagementView(QWidget):
         
         filter_layout.addWidget(QLabel("Supplier:"))
         self.supplier_combo = QComboBox()
+        self.supplier_combo.setEditable(True)
         self.supplier_combo.addItem("All Suppliers", None)
         filter_layout.addWidget(self.supplier_combo)
         
@@ -112,6 +126,7 @@ class PaymentManagementView(QWidget):
         self.date_input = QDateEdit()
         self.date_input.setDate(QDate.currentDate())
         self.date_input.setCalendarPopup(True)
+        self.date_input.setDisplayFormat("dd-MM-yyyy")
         self.date_input.setEnabled(False)
         self.date_checkbox.toggled.connect(self.date_input.setEnabled)
         filter_layout.addWidget(self.date_input)
@@ -151,12 +166,27 @@ class PaymentManagementView(QWidget):
         self.supplier_combo.clear()
         self.supplier_combo.addItem("All Suppliers", None)
         suppliers = self.db.get_all_suppliers()
+        names = ["All Suppliers"]
         for sup in suppliers:
             self.supplier_combo.addItem(sup[1], sup[0])
+            names.append(sup[1])
+            
+        completer = QCompleter(names)
+        completer.setCaseSensitivity(Qt.CaseInsensitive)
+        completer.setFilterMode(Qt.MatchContains)
+        self.supplier_combo.setCompleter(completer)
+        
         self.load_data()
         
+    def get_selected_filter_supplier_id(self):
+        text = self.supplier_combo.currentText().strip()
+        index = self.supplier_combo.findText(text, Qt.MatchFixedString)
+        if index >= 0:
+            return self.supplier_combo.itemData(index)
+        return None
+        
     def load_data(self):
-        supplier_id = self.supplier_combo.currentData()
+        supplier_id = self.get_selected_filter_supplier_id()
         date = self.date_input.date().toString(Qt.ISODate) if self.date_checkbox.isChecked() else None
         
         entries = self.db.get_payments(supplier_id, date)
@@ -166,7 +196,12 @@ class PaymentManagementView(QWidget):
             # p.id, p.date, s.name, p.amount, p.remarks
             self.table.insertRow(row_idx)
             self.table.setItem(row_idx, 0, QTableWidgetItem(str(row_data[0])))
-            self.table.setItem(row_idx, 1, QTableWidgetItem(row_data[1]))
+            
+            # Format Date
+            date_obj = QDate.fromString(row_data[1], Qt.ISODate)
+            f_date = date_obj.toString("dd-MM-yyyy") if date_obj.isValid() else row_data[1]
+            
+            self.table.setItem(row_idx, 1, QTableWidgetItem(f_date))
             self.table.setItem(row_idx, 2, QTableWidgetItem(row_data[2]))
             self.table.setItem(row_idx, 3, QTableWidgetItem(f"{row_data[3]:.2f}"))
             self.table.setItem(row_idx, 4, QTableWidgetItem(row_data[4] or ""))

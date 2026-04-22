@@ -139,9 +139,16 @@ class DatabaseManager:
     def generate_entry_number(self):
         with self.get_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute("SELECT COUNT(*) FROM procurements")
-            count = cursor.fetchone()[0]
-            return f"PUR-{datetime.now().strftime('%Y%m')}-{count + 1:04d}"
+            prefix = f"PUR-{datetime.now().strftime('%Y%m')}-"
+            cursor.execute("SELECT entry_number FROM procurements WHERE entry_number LIKE ? ORDER BY entry_number DESC LIMIT 1", (f"{prefix}%",))
+            row = cursor.fetchone()
+            if row:
+                try:
+                    seq = int(row[0].split('-')[-1])
+                    return f"{prefix}{seq + 1:04d}"
+                except ValueError:
+                    return f"{prefix}0001"
+            return f"{prefix}0001"
 
     def add_procurement(self, data, items):
         with self.get_connection() as conn:

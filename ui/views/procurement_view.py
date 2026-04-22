@@ -1,6 +1,6 @@
 from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, 
                              QLabel, QLineEdit, QComboBox, QPushButton, 
-                             QTableWidget, QTableWidgetItem, QHeaderView, QMessageBox, QDateEdit)
+                             QTableWidget, QTableWidgetItem, QHeaderView, QMessageBox, QDateEdit, QCompleter)
 from PyQt5.QtCore import Qt, QDate
 
 class ProcurementView(QWidget):
@@ -24,10 +24,12 @@ class ProcurementView(QWidget):
         self.date_input = QDateEdit()
         self.date_input.setDate(QDate.currentDate())
         self.date_input.setCalendarPopup(True)
+        self.date_input.setDisplayFormat("dd-MM-yyyy")
         header_layout.addWidget(self.date_input, 0, 3)
         
         header_layout.addWidget(QLabel("Supplier:"), 1, 0)
         self.supplier_combo = QComboBox()
+        self.supplier_combo.setEditable(True)
         header_layout.addWidget(self.supplier_combo, 1, 1)
         
         header_layout.addWidget(QLabel("Total Weight:"), 1, 2)
@@ -140,22 +142,44 @@ class ProcurementView(QWidget):
     def refresh_data(self):
         self.entry_num_input.setText(self.db.generate_entry_number())
         
+        try:
+            self.supplier_combo.currentTextChanged.disconnect(self.on_supplier_changed)
+        except TypeError:
+            pass
+            
         # Populate suppliers
         self.supplier_combo.clear()
         suppliers = self.db.get_all_suppliers()
+        names = []
         for sup in suppliers:
             # id, name, current_balance, opening_balance
             self.supplier_combo.addItem(sup[1], sup[0])
+            names.append(sup[1])
             
-        self.supplier_combo.currentIndexChanged.connect(self.on_supplier_changed)
+        completer = QCompleter(names)
+        completer.setCaseSensitivity(Qt.CaseInsensitive)
+        completer.setFilterMode(Qt.MatchContains)
+        self.supplier_combo.setCompleter(completer)
+        
+        self.supplier_combo.setCurrentIndex(-1)
+        self.supplier_combo.currentTextChanged.connect(self.on_supplier_changed)
         self.on_supplier_changed()
         
+    def get_selected_supplier_id(self):
+        text = self.supplier_combo.currentText().strip()
+        index = self.supplier_combo.findText(text, Qt.MatchFixedString)
+        if index >= 0:
+            return self.supplier_combo.itemData(index)
+        return None
+        
     def on_supplier_changed(self):
-        supplier_id = self.supplier_combo.currentData()
+        supplier_id = self.get_selected_supplier_id()
         if supplier_id:
             sup = self.db.get_supplier_by_id(supplier_id)
             if sup:
                 self.prev_balance_input.setText(f"{sup[2]:.2f}")
+        else:
+            self.prev_balance_input.setText("0.00")
         self.submit_btn.setEnabled(False)
         
     def calculate_base_amount(self):
@@ -237,9 +261,9 @@ class ProcurementView(QWidget):
             QMessageBox.warning(self, "Validation", "Total weight and rate are required.")
             return
             
-        supplier_id = self.supplier_combo.currentData()
+        supplier_id = self.get_selected_supplier_id()
         if not supplier_id:
-            QMessageBox.warning(self, "Validation", "Please select a supplier.")
+            QMessageBox.warning(self, "Validation", "Please select a valid supplier from the list.")
             return
             
         data = {

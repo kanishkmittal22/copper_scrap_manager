@@ -1,5 +1,5 @@
 from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QComboBox, 
-                             QDateEdit, QPushButton, QTableWidget, QTableWidgetItem, QHeaderView, QLabel, QMessageBox, QCheckBox, QDialog, QGridLayout, QLineEdit)
+                             QDateEdit, QPushButton, QTableWidget, QTableWidgetItem, QHeaderView, QLabel, QMessageBox, QCheckBox, QDialog, QGridLayout, QLineEdit, QCompleter)
 from PyQt5.QtCore import Qt, QDate
 
 class ProcurementEditDialog(QDialog):
@@ -26,10 +26,12 @@ class ProcurementEditDialog(QDialog):
         header_layout.addWidget(QLabel("Date:"), 0, 2)
         self.date_input = QDateEdit()
         self.date_input.setCalendarPopup(True)
+        self.date_input.setDisplayFormat("dd-MM-yyyy")
         header_layout.addWidget(self.date_input, 0, 3)
         
         header_layout.addWidget(QLabel("Supplier:"), 1, 0)
         self.supplier_combo = QComboBox()
+        self.supplier_combo.setEditable(True)
         header_layout.addWidget(self.supplier_combo, 1, 1)
         
         header_layout.addWidget(QLabel("Total Weight:"), 1, 2)
@@ -130,9 +132,17 @@ class ProcurementEditDialog(QDialog):
         main_layout.addLayout(btn_layout)
         
         # Populate suppliers
+        self.supplier_combo.clear()
         suppliers = self.db.get_all_suppliers()
+        names = []
         for sup in suppliers:
             self.supplier_combo.addItem(sup[1], sup[0])
+            names.append(sup[1])
+            
+        completer = QCompleter(names)
+        completer.setCaseSensitivity(Qt.CaseInsensitive)
+        completer.setFilterMode(Qt.MatchContains)
+        self.supplier_combo.setCompleter(completer)
 
     def load_data(self):
         record = self.db.get_procurement_by_id(self.procurement_id)
@@ -240,9 +250,12 @@ class ProcurementEditDialog(QDialog):
             QMessageBox.warning(self, "Validation", "Total weight and rate are required.")
             return
             
-        supplier_id = self.supplier_combo.currentData()
+        text = self.supplier_combo.currentText().strip()
+        index = self.supplier_combo.findText(text, Qt.MatchFixedString)
+        supplier_id = self.supplier_combo.itemData(index) if index >= 0 else None
+        
         if not supplier_id:
-            QMessageBox.warning(self, "Validation", "Please select a supplier.")
+            QMessageBox.warning(self, "Validation", "Please select a valid supplier from the list.")
             return
             
         data = {
@@ -288,6 +301,7 @@ class ProcurementManagementView(QWidget):
         
         filter_layout.addWidget(QLabel("Supplier:"))
         self.supplier_combo = QComboBox()
+        self.supplier_combo.setEditable(True)
         self.supplier_combo.addItem("All Suppliers", None)
         filter_layout.addWidget(self.supplier_combo)
         
@@ -297,6 +311,7 @@ class ProcurementManagementView(QWidget):
         self.date_input = QDateEdit()
         self.date_input.setDate(QDate.currentDate())
         self.date_input.setCalendarPopup(True)
+        self.date_input.setDisplayFormat("dd-MM-yyyy")
         self.date_input.setEnabled(False)
         self.date_checkbox.toggled.connect(self.date_input.setEnabled)
         filter_layout.addWidget(self.date_input)
@@ -336,12 +351,27 @@ class ProcurementManagementView(QWidget):
         self.supplier_combo.clear()
         self.supplier_combo.addItem("All Suppliers", None)
         suppliers = self.db.get_all_suppliers()
+        names = ["All Suppliers"]
         for sup in suppliers:
             self.supplier_combo.addItem(sup[1], sup[0])
+            names.append(sup[1])
+            
+        completer = QCompleter(names)
+        completer.setCaseSensitivity(Qt.CaseInsensitive)
+        completer.setFilterMode(Qt.MatchContains)
+        self.supplier_combo.setCompleter(completer)
+        
         self.load_data()
         
+    def get_selected_filter_supplier_id(self):
+        text = self.supplier_combo.currentText().strip()
+        index = self.supplier_combo.findText(text, Qt.MatchFixedString)
+        if index >= 0:
+            return self.supplier_combo.itemData(index)
+        return None
+        
     def load_data(self):
-        supplier_id = self.supplier_combo.currentData()
+        supplier_id = self.get_selected_filter_supplier_id()
         date = self.date_input.date().toString(Qt.ISODate) if self.date_checkbox.isChecked() else None
         
         entries = self.db.get_procurements(supplier_id, date)
@@ -352,7 +382,12 @@ class ProcurementManagementView(QWidget):
             self.table.insertRow(row_idx)
             self.table.setItem(row_idx, 0, QTableWidgetItem(str(row_data[0])))
             self.table.setItem(row_idx, 1, QTableWidgetItem(row_data[1]))
-            self.table.setItem(row_idx, 2, QTableWidgetItem(row_data[2]))
+            
+            # Format Date
+            date_obj = QDate.fromString(row_data[2], Qt.ISODate)
+            f_date = date_obj.toString("dd-MM-yyyy") if date_obj.isValid() else row_data[2]
+            
+            self.table.setItem(row_idx, 2, QTableWidgetItem(f_date))
             self.table.setItem(row_idx, 3, QTableWidgetItem(row_data[3]))
             self.table.setItem(row_idx, 4, QTableWidgetItem(f"{row_data[4]:.2f}"))
             self.table.setItem(row_idx, 5, QTableWidgetItem(f"{row_data[5]:.2f}"))

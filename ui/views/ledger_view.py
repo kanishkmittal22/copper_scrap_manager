@@ -1,5 +1,5 @@
 from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QComboBox, 
-                             QDateEdit, QPushButton, QTableWidget, QTableWidgetItem, QHeaderView, QLabel)
+                             QDateEdit, QPushButton, QTableWidget, QTableWidgetItem, QHeaderView, QLabel, QCompleter)
 from PyQt5.QtCore import Qt, QDate
 
 class LedgerView(QWidget):
@@ -22,19 +22,21 @@ class LedgerView(QWidget):
         
         controls_layout.addWidget(QLabel("Supplier:"))
         self.supplier_combo = QComboBox()
-        self.supplier_combo.currentIndexChanged.connect(self.update_balance_header)
+        self.supplier_combo.setEditable(True)
         controls_layout.addWidget(self.supplier_combo)
         
         controls_layout.addWidget(QLabel("From:"))
         self.from_date = QDateEdit()
         self.from_date.setDate(QDate.currentDate().addMonths(-1))
         self.from_date.setCalendarPopup(True)
+        self.from_date.setDisplayFormat("dd-MM-yyyy")
         controls_layout.addWidget(self.from_date)
         
         controls_layout.addWidget(QLabel("To:"))
         self.to_date = QDateEdit()
         self.to_date.setDate(QDate.currentDate())
         self.to_date.setCalendarPopup(True)
+        self.to_date.setDisplayFormat("dd-MM-yyyy")
         controls_layout.addWidget(self.to_date)
         
         self.gen_btn = QPushButton("Generate Ledger")
@@ -54,15 +56,36 @@ class LedgerView(QWidget):
         layout.addWidget(self.table)
         
     def refresh_data(self):
+        try:
+            self.supplier_combo.currentTextChanged.disconnect(self.update_balance_header)
+        except TypeError:
+            pass
+            
         self.supplier_combo.clear()
         suppliers = self.db.get_all_suppliers()
+        names = []
         for sup in suppliers:
             self.supplier_combo.addItem(sup[1], sup[0])
+            names.append(sup[1])
             
+        completer = QCompleter(names)
+        completer.setCaseSensitivity(Qt.CaseInsensitive)
+        completer.setFilterMode(Qt.MatchContains)
+        self.supplier_combo.setCompleter(completer)
+        
+        self.supplier_combo.setCurrentIndex(-1)
+        self.supplier_combo.currentTextChanged.connect(self.update_balance_header)
         self.update_balance_header()
+        
+    def get_selected_supplier_id(self):
+        text = self.supplier_combo.currentText().strip()
+        index = self.supplier_combo.findText(text, Qt.MatchFixedString)
+        if index >= 0:
+            return self.supplier_combo.itemData(index)
+        return None
             
     def update_balance_header(self):
-        supplier_id = self.supplier_combo.currentData()
+        supplier_id = self.get_selected_supplier_id()
         if supplier_id:
             sup = self.db.get_supplier_by_id(supplier_id)
             if sup:
@@ -71,10 +94,11 @@ class LedgerView(QWidget):
                 self.balance_header.setStyleSheet(f"font-size: 22px; font-weight: bold; color: {color}; margin-bottom: 10px;")
                 self.balance_header.setText(f"Current Balance: ₹{balance:.2f}")
         else:
+            self.balance_header.setStyleSheet("font-size: 22px; font-weight: bold; color: #27ae60; margin-bottom: 10px;")
             self.balance_header.setText("Current Balance: ₹0.00")
             
     def generate_ledger(self):
-        supplier_id = self.supplier_combo.currentData()
+        supplier_id = self.get_selected_supplier_id()
         if not supplier_id:
             return
             
@@ -88,7 +112,8 @@ class LedgerView(QWidget):
         
         # Add Opening Balance Row
         self.table.insertRow(0)
-        self.table.setItem(0, 0, QTableWidgetItem(from_d))
+        f_from_d = QDate.fromString(from_d, Qt.ISODate).toString("dd-MM-yyyy")
+        self.table.setItem(0, 0, QTableWidgetItem(f_from_d))
         self.table.setItem(0, 1, QTableWidgetItem("Opening Balance"))
         self.table.setItem(0, 2, QTableWidgetItem("-"))
         self.table.setItem(0, 3, QTableWidgetItem(""))
@@ -106,11 +131,15 @@ class LedgerView(QWidget):
             
             date, e_type, ref, credit, debit = entry
             
+            # Format Date
+            date_obj = QDate.fromString(date, Qt.ISODate)
+            f_date = date_obj.toString("dd-MM-yyyy") if date_obj.isValid() else date
+            
             # Credit means supplier balance increases (We bought from them)
             # Debit means supplier balance decreases (We paid them)
             current_balance += (credit - debit)
             
-            self.table.setItem(row, 0, QTableWidgetItem(date))
+            self.table.setItem(row, 0, QTableWidgetItem(f_date))
             self.table.setItem(row, 1, QTableWidgetItem(e_type))
             self.table.setItem(row, 2, QTableWidgetItem(ref))
             
