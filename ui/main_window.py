@@ -10,6 +10,7 @@ from ui.views.payment_management_view import PaymentManagementView
 from ui.views.ledger_view import LedgerView
 from ui.views.customer_management_view import CustomerManagementView
 from ui.views.sales_ledger_view import SalesLedgerView
+from ui.views.daily_cash_book_view import DailyCashBookView
 
 class MainWindow(QMainWindow):
     def __init__(self, db):
@@ -68,6 +69,14 @@ class MainWindow(QMainWindow):
         sidebar_layout.addWidget(self.btn_customers)
         sidebar_layout.addWidget(self.btn_sales_ledger)
         
+        # --- Reports Section ---
+        reports_label = QLabel("--- REPORTS ---")
+        reports_label.setStyleSheet("color: #7f8fa6; font-size: 12px; font-weight: bold; padding-left: 20px; margin-top: 15px; margin-bottom: 5px;")
+        sidebar_layout.addWidget(reports_label)
+        
+        self.btn_cash_book = self.create_nav_button("📒 Daily Cash Book", 8)
+        sidebar_layout.addWidget(self.btn_cash_book)
+        
         sidebar_layout.addStretch()
         
         # Logout button
@@ -97,6 +106,7 @@ class MainWindow(QMainWindow):
         self.ledger_view = LedgerView(self.db)
         self.customer_view = CustomerManagementView(self.db)
         self.sales_ledger_view = SalesLedgerView(self.db)
+        self.cash_book_view = DailyCashBookView(self.db)
         
         self.stacked_widget.addWidget(self.supplier_view)
         self.stacked_widget.addWidget(self.procurement_view)
@@ -106,6 +116,7 @@ class MainWindow(QMainWindow):
         self.stacked_widget.addWidget(self.ledger_view)
         self.stacked_widget.addWidget(self.customer_view)
         self.stacked_widget.addWidget(self.sales_ledger_view)
+        self.stacked_widget.addWidget(self.cash_book_view)
         
         content_layout.addWidget(self.stacked_widget)
         main_layout.addWidget(content_widget)
@@ -135,7 +146,8 @@ class MainWindow(QMainWindow):
             "Manage Payment Entries",
             "Purchase Ledger",
             "Customer Management",
-            "Sales Ledger"
+            "Sales Ledger",
+            "Daily Cash Book"
         ]
         self.header_label.setText(titles[index])
         

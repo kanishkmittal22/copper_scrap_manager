@@ -798,6 +798,29 @@ class DatabaseManager:
                 conn.rollback()
                 return False, f"Error deleting payment received: {str(e)}"
 
+    # --- Daily Cash Book Operations ---
+    def get_daily_cash_inflows(self, date):
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('''
+                SELECT c.name, p.amount 
+                FROM payments_received p
+                JOIN customers c ON p.customer_id = c.id
+                WHERE p.date = ?
+            ''', (date,))
+            return cursor.fetchall()
+            
+    def get_daily_cash_outflows(self, date):
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('''
+                SELECT s.name, p.amount 
+                FROM payments p
+                JOIN suppliers s ON p.supplier_id = s.id
+                WHERE p.date = ?
+            ''', (date,))
+            return cursor.fetchall()
+
     # --- Sales Ledger Operations ---
     def get_sales_ledger(self, customer_id, from_date, to_date):
         with self.get_connection() as conn:
