@@ -8,6 +8,8 @@ from ui.views.procurement_management_view import ProcurementManagementView
 from ui.views.payment_view import PaymentView
 from ui.views.payment_management_view import PaymentManagementView
 from ui.views.ledger_view import LedgerView
+from ui.views.customer_management_view import CustomerManagementView
+from ui.views.sales_ledger_view import SalesLedgerView
 
 class MainWindow(QMainWindow):
     def __init__(self, db):
@@ -54,6 +56,18 @@ class MainWindow(QMainWindow):
         sidebar_layout.addWidget(self.btn_payments)
         sidebar_layout.addWidget(self.btn_pay_mgmt)
         sidebar_layout.addWidget(self.btn_ledger)
+        
+        # --- Sales Section ---
+        sales_label = QLabel("--- SALES ---")
+        sales_label.setStyleSheet("color: #7f8fa6; font-size: 12px; font-weight: bold; padding-left: 20px; margin-top: 15px; margin-bottom: 5px;")
+        sidebar_layout.addWidget(sales_label)
+        
+        self.btn_customers = self.create_nav_button("👥 Customers", 6)
+        self.btn_sales_ledger = self.create_nav_button("📈 Sales Ledger", 7)
+        
+        sidebar_layout.addWidget(self.btn_customers)
+        sidebar_layout.addWidget(self.btn_sales_ledger)
+        
         sidebar_layout.addStretch()
         
         # Logout button
@@ -81,6 +95,8 @@ class MainWindow(QMainWindow):
         self.payment_view = PaymentView(self.db)
         self.pay_mgmt_view = PaymentManagementView(self.db)
         self.ledger_view = LedgerView(self.db)
+        self.customer_view = CustomerManagementView(self.db)
+        self.sales_ledger_view = SalesLedgerView(self.db)
         
         self.stacked_widget.addWidget(self.supplier_view)
         self.stacked_widget.addWidget(self.procurement_view)
@@ -88,6 +104,8 @@ class MainWindow(QMainWindow):
         self.stacked_widget.addWidget(self.payment_view)
         self.stacked_widget.addWidget(self.pay_mgmt_view)
         self.stacked_widget.addWidget(self.ledger_view)
+        self.stacked_widget.addWidget(self.customer_view)
+        self.stacked_widget.addWidget(self.sales_ledger_view)
         
         content_layout.addWidget(self.stacked_widget)
         main_layout.addWidget(content_widget)
@@ -115,7 +133,9 @@ class MainWindow(QMainWindow):
             "Manage Procurement Entries",
             "New Payment Entry", 
             "Manage Payment Entries",
-            "Purchase Ledger"
+            "Purchase Ledger",
+            "Customer Management",
+            "Sales Ledger"
         ]
         self.header_label.setText(titles[index])
         

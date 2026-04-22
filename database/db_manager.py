@@ -67,6 +67,43 @@ class DatabaseManager:
                 )
             ''')
             
+            # Customers Table
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS customers (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name TEXT UNIQUE NOT NULL,
+                    opening_balance REAL DEFAULT 0,
+                    current_balance REAL DEFAULT 0
+                )
+            ''')
+            
+            # Sales Table
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS sales (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    entry_number TEXT UNIQUE NOT NULL,
+                    date TEXT NOT NULL,
+                    customer_id INTEGER NOT NULL,
+                    total_weight REAL DEFAULT 0,
+                    rate REAL DEFAULT 0,
+                    total_amount REAL DEFAULT 0,
+                    remarks TEXT,
+                    FOREIGN KEY (customer_id) REFERENCES customers(id)
+                )
+            ''')
+            
+            # Payments Received Table
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS payments_received (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    date TEXT NOT NULL,
+                    customer_id INTEGER NOT NULL,
+                    amount REAL NOT NULL,
+                    remarks TEXT,
+                    FOREIGN KEY (customer_id) REFERENCES customers(id)
+                )
+            ''')
+            
             # Enable Foreign Keys
             cursor.execute("PRAGMA foreign_keys = ON")
             conn.commit()
@@ -461,3 +498,349 @@ class DatabaseManager:
             except Exception as e:
                 conn.rollback()
                 return False, f"Error updating payment: {str(e)}"
+
+    # ==========================================================
+    # --- SALES SIDE OPERATIONS ---
+    # ==========================================================
+
+    # --- Customer Operations ---
+    def add_customer(self, name, opening_balance):
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            try:
+                cursor.execute(
+                    "INSERT INTO customers (name, opening_balance, current_balance) VALUES (?, ?, ?)",
+                    (name, opening_balance, opening_balance)
+                )
+                conn.commit()
+                return True, "Customer added successfully."
+            except sqlite3.IntegrityError:
+                return False, "Customer name already exists."
+
+    def update_customer(self, customer_id, name, new_opening_balance):
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT opening_balance FROM customers WHERE id = ?", (customer_id,))
+            row = cursor.fetchone()
+            if not row:
+                return False, "Customer not found."
+            
+            old_opening_balance = row[0]
+            diff = new_opening_balance - old_opening_balance
+            
+            try:
+                cursor.execute(
+                    "UPDATE customers SET name = ?, opening_balance = ?, current_balance = current_balance + ? WHERE id = ?",
+                    (name, new_opening_balance, diff, customer_id)
+                )
+                conn.commit()
+                return True, "Customer updated successfully."
+            except sqlite3.IntegrityError:
+                return False, "Customer name already exists."
+
+    def delete_customer(self, customer_id):
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT COUNT(*) FROM sales WHERE customer_id = ?", (customer_id,))
+            if cursor.fetchone()[0] > 0:
+                return False, "Cannot delete customer with existing sales."
+                
+            cursor.execute("SELECT COUNT(*) FROM payments_received WHERE customer_id = ?", (customer_id,))
+            if cursor.fetchone()[0] > 0:
+                return False, "Cannot delete customer with existing payments."
+                
+            cursor.execute("DELETE FROM customers WHERE id = ?", (customer_id,))
+            conn.commit()
+            return True, "Customer deleted successfully."
+
+    def get_all_customers(self):
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT id, name, current_balance, opening_balance FROM customers ORDER BY name")
+            return cursor.fetchall()
+            
+    def get_customer_by_id(self, customer_id):
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT id, name, current_balance, opening_balance FROM customers WHERE id = ?", (customer_id,))
+            return cursor.fetchone()
+
+    # --- Sales Operations ---
+    def generate_sales_entry_number(self):
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            prefix = f"SAL-{datetime.now().strftime('%Y%m')}-"
+            cursor.execute("SELECT entry_number FROM sales WHERE entry_number LIKE ? ORDER BY entry_number DESC LIMIT 1", (f"{prefix}%",))
+            row = cursor.fetchone()
+            if row:
+                try:
+                    seq = int(row[0].split('-')[-1])
+                    return f"{prefix}{seq + 1:04d}"
+                except ValueError:
+                    return f"{prefix}0001"
+            return f"{prefix}0001"
+
+    def add_sale(self, data):
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            try:
+                cursor.execute('''
+                    INSERT INTO sales 
+                    (entry_number, date, customer_id, total_weight, rate, total_amount, remarks)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                ''', (
+                    data['entry_number'], data['date'], data['customer_id'], 
+                    data['total_weight'], data['rate'], data['total_amount'], 
+                    data['remarks']
+                ))
+                
+                # Sales increase customer balance
+                cursor.execute(
+                    "UPDATE customers SET current_balance = current_balance + ? WHERE id = ?",
+                    (data['total_amount'], data['customer_id'])
+                )
+                
+                conn.commit()
+                return True, "Sales entry saved successfully."
+            except Exception as e:
+                conn.rollback()
+                return False, f"Error saving entry: {str(e)}"
+
+    def get_sales(self, customer_id=None, date=None):
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            query = """
+                SELECT s.id, s.entry_number, s.date, c.name, s.total_weight, s.rate, s.total_amount, s.remarks, c.id 
+                FROM sales s
+                JOIN customers c ON s.customer_id = c.id
+                WHERE 1=1
+            """
+            params = []
+            if customer_id:
+                query += " AND s.customer_id = ?"
+                params.append(customer_id)
+            if date:
+                query += " AND s.date = ?"
+                params.append(date)
+            query += " ORDER BY s.date DESC, s.id DESC"
+            
+            cursor.execute(query, tuple(params))
+            return cursor.fetchall()
+            
+    def get_sale_by_id(self, sale_id):
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM sales WHERE id = ?", (sale_id,))
+            sale = cursor.fetchone()
+            if not sale:
+                return None
+            col_names = [description[0] for description in cursor.description]
+            return dict(zip(col_names, sale))
+
+    def update_sale(self, sale_id, data):
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            try:
+                # 1. Get old details
+                cursor.execute("SELECT total_amount, customer_id FROM sales WHERE id = ?", (sale_id,))
+                row = cursor.fetchone()
+                if not row:
+                    return False, "Sales entry not found."
+                old_total_amount, old_customer_id = row
+                
+                # 2. Reverse old balance
+                cursor.execute("UPDATE customers SET current_balance = current_balance - ? WHERE id = ?", (old_total_amount, old_customer_id))
+                
+                # 3. Update main sales entry
+                cursor.execute('''
+                    UPDATE sales 
+                    SET date=?, customer_id=?, total_weight=?, rate=?, total_amount=?, remarks=?
+                    WHERE id=?
+                ''', (
+                    data['date'], data['customer_id'], data['total_weight'], data['rate'], 
+                    data['total_amount'], data['remarks'], sale_id
+                ))
+                
+                # 4. Apply new balance
+                cursor.execute("UPDATE customers SET current_balance = current_balance + ? WHERE id = ?", (data['total_amount'], data['customer_id']))
+                
+                conn.commit()
+                return True, "Sales entry updated successfully."
+            except Exception as e:
+                conn.rollback()
+                return False, f"Error updating sales entry: {str(e)}"
+
+    def delete_sale(self, sale_id):
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            try:
+                cursor.execute("SELECT total_amount, customer_id FROM sales WHERE id = ?", (sale_id,))
+                row = cursor.fetchone()
+                if not row:
+                    return False, "Sales entry not found."
+                total_amount, customer_id = row
+                
+                cursor.execute("DELETE FROM sales WHERE id = ?", (sale_id,))
+                
+                # Reverse balance: subtract amount
+                cursor.execute(
+                    "UPDATE customers SET current_balance = current_balance - ? WHERE id = ?",
+                    (total_amount, customer_id)
+                )
+                
+                conn.commit()
+                return True, "Sales entry deleted successfully."
+            except Exception as e:
+                conn.rollback()
+                return False, f"Error deleting sales entry: {str(e)}"
+
+    # --- Payment Received Operations ---
+    def add_payment_received(self, data):
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            try:
+                cursor.execute('''
+                    INSERT INTO payments_received (date, customer_id, amount, remarks)
+                    VALUES (?, ?, ?, ?)
+                ''', (data['date'], data['customer_id'], data['amount'], data['remarks']))
+                
+                # Deduct payment from customer balance (reduces receivable)
+                cursor.execute(
+                    "UPDATE customers SET current_balance = current_balance - ? WHERE id = ?",
+                    (data['amount'], data['customer_id'])
+                )
+                
+                conn.commit()
+                return True, "Payment received recorded successfully."
+            except Exception as e:
+                conn.rollback()
+                return False, f"Error recording payment received: {str(e)}"
+
+    def get_payments_received(self, customer_id=None, date=None):
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            query = """
+                SELECT p.id, p.date, c.name, p.amount, p.remarks, c.id
+                FROM payments_received p
+                JOIN customers c ON p.customer_id = c.id
+                WHERE 1=1
+            """
+            params = []
+            if customer_id:
+                query += " AND p.customer_id = ?"
+                params.append(customer_id)
+            if date:
+                query += " AND p.date = ?"
+                params.append(date)
+            query += " ORDER BY p.date DESC, p.id DESC"
+            
+            cursor.execute(query, tuple(params))
+            return cursor.fetchall()
+
+    def get_payment_received_by_id(self, payment_id):
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM payments_received WHERE id = ?", (payment_id,))
+            payment = cursor.fetchone()
+            if not payment:
+                return None
+            col_names = [description[0] for description in cursor.description]
+            return dict(zip(col_names, payment))
+
+    def update_payment_received(self, payment_id, data):
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            try:
+                cursor.execute("SELECT amount, customer_id FROM payments_received WHERE id = ?", (payment_id,))
+                row = cursor.fetchone()
+                if not row:
+                    return False, "Payment received not found."
+                old_amount, old_customer_id = row
+                
+                # Reverse old balance (add back to receivable)
+                cursor.execute("UPDATE customers SET current_balance = current_balance + ? WHERE id = ?", (old_amount, old_customer_id))
+                
+                # Update payment
+                cursor.execute('''
+                    UPDATE payments_received SET date=?, customer_id=?, amount=?, remarks=? WHERE id=?
+                ''', (data['date'], data['customer_id'], data['amount'], data['remarks'], payment_id))
+                
+                # Apply new balance (subtract from receivable)
+                cursor.execute("UPDATE customers SET current_balance = current_balance - ? WHERE id = ?", (data['amount'], data['customer_id']))
+                
+                conn.commit()
+                return True, "Payment received updated successfully."
+            except Exception as e:
+                conn.rollback()
+                return False, f"Error updating payment received: {str(e)}"
+
+    def delete_payment_received(self, payment_id):
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            try:
+                cursor.execute("SELECT amount, customer_id FROM payments_received WHERE id = ?", (payment_id,))
+                row = cursor.fetchone()
+                if not row:
+                    return False, "Payment received not found."
+                amount, customer_id = row
+                
+                cursor.execute("DELETE FROM payments_received WHERE id = ?", (payment_id,))
+                
+                # Reverse balance: adding amount back to customer receivable
+                cursor.execute(
+                    "UPDATE customers SET current_balance = current_balance + ? WHERE id = ?",
+                    (amount, customer_id)
+                )
+                
+                conn.commit()
+                return True, "Payment received deleted successfully."
+            except Exception as e:
+                conn.rollback()
+                return False, f"Error deleting payment received: {str(e)}"
+
+    # --- Sales Ledger Operations ---
+    def get_sales_ledger(self, customer_id, from_date, to_date):
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            
+            # Sales (Debits to Customer Account)
+            cursor.execute('''
+                SELECT date, 'Sale' as type, entry_number as reference, total_amount as debit, 0 as credit, id
+                FROM sales
+                WHERE customer_id = ? AND date >= ? AND date <= ?
+            ''', (customer_id, from_date, to_date))
+            sales = cursor.fetchall()
+            
+            # Payments Received (Credits to Customer Account)
+            cursor.execute('''
+                SELECT date, 'Payment Received' as type, remarks as reference, 0 as debit, amount as credit, id
+                FROM payments_received
+                WHERE customer_id = ? AND date >= ? AND date <= ?
+            ''', (customer_id, from_date, to_date))
+            payments = cursor.fetchall()
+            
+            # Combine and sort by date
+            all_entries = sales + payments
+            all_entries.sort(key=lambda x: x[0])
+            
+            return all_entries
+            
+    def get_opening_balance_for_sales_ledger(self, customer_id, from_date):
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            
+            cursor.execute("SELECT opening_balance FROM customers WHERE id = ?", (customer_id,))
+            row = cursor.fetchone()
+            if not row:
+                return 0
+            base_ob = row[0]
+            
+            # Sales before from_date
+            cursor.execute("SELECT SUM(total_amount) FROM sales WHERE customer_id = ? AND date < ?", (customer_id, from_date))
+            sales_sum = cursor.fetchone()[0] or 0
+            
+            # Payments Received before from_date
+            cursor.execute("SELECT SUM(amount) FROM payments_received WHERE customer_id = ? AND date < ?", (customer_id, from_date))
+            pay_sum = cursor.fetchone()[0] or 0
+            
+            return base_ob + sales_sum - pay_sum
