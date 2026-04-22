@@ -821,6 +821,29 @@ class DatabaseManager:
             ''', (date,))
             return cursor.fetchall()
 
+    # --- Daily Inventory Report Operations ---
+    def get_daily_scrap_inward(self, date):
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('''
+                SELECT s.name, p.total_weight 
+                FROM procurements p
+                JOIN suppliers s ON p.supplier_id = s.id
+                WHERE p.date = ?
+            ''', (date,))
+            return cursor.fetchall()
+            
+    def get_daily_rod_outward(self, date):
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('''
+                SELECT c.name, s.total_weight 
+                FROM sales s
+                JOIN customers c ON s.customer_id = c.id
+                WHERE s.date = ?
+            ''', (date,))
+            return cursor.fetchall()
+
     # --- Sales Ledger Operations ---
     def get_sales_ledger(self, customer_id, from_date, to_date):
         with self.get_connection() as conn:

@@ -11,6 +11,7 @@ from ui.views.ledger_view import LedgerView
 from ui.views.customer_management_view import CustomerManagementView
 from ui.views.sales_ledger_view import SalesLedgerView
 from ui.views.daily_cash_book_view import DailyCashBookView
+from ui.views.daily_inventory_report_view import DailyInventoryReportView
 
 class MainWindow(QMainWindow):
     def __init__(self, db):
@@ -75,7 +76,10 @@ class MainWindow(QMainWindow):
         sidebar_layout.addWidget(reports_label)
         
         self.btn_cash_book = self.create_nav_button("📒 Daily Cash Book", 8)
+        self.btn_inventory_report = self.create_nav_button("📦 Daily Inventory", 9)
+        
         sidebar_layout.addWidget(self.btn_cash_book)
+        sidebar_layout.addWidget(self.btn_inventory_report)
         
         sidebar_layout.addStretch()
         
@@ -107,6 +111,7 @@ class MainWindow(QMainWindow):
         self.customer_view = CustomerManagementView(self.db)
         self.sales_ledger_view = SalesLedgerView(self.db)
         self.cash_book_view = DailyCashBookView(self.db)
+        self.inventory_report_view = DailyInventoryReportView(self.db)
         
         self.stacked_widget.addWidget(self.supplier_view)
         self.stacked_widget.addWidget(self.procurement_view)
@@ -117,6 +122,7 @@ class MainWindow(QMainWindow):
         self.stacked_widget.addWidget(self.customer_view)
         self.stacked_widget.addWidget(self.sales_ledger_view)
         self.stacked_widget.addWidget(self.cash_book_view)
+        self.stacked_widget.addWidget(self.inventory_report_view)
         
         content_layout.addWidget(self.stacked_widget)
         main_layout.addWidget(content_widget)
@@ -147,7 +153,8 @@ class MainWindow(QMainWindow):
             "Purchase Ledger",
             "Customer Management",
             "Sales Ledger",
-            "Daily Cash Book"
+            "Daily Cash Book",
+            "Daily Inventory Report"
         ]
         self.header_label.setText(titles[index])
         
