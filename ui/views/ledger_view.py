@@ -53,7 +53,7 @@ class LedgerView(QWidget):
         # --- Table ---
         self.table = QTableWidget()
         self.table.setColumnCount(6)
-        self.table.setHorizontalHeaderLabels(["Date", "Transaction Type", "Reference Details", "Debit (Purchase Amount)", "Credit (Payment Amount)", "Balance"])
+        self.table.setHorizontalHeaderLabels(["Date", "Type", "Reference", "Debit (Purchase)", "Credit (Payment)", "Balance"])
         self.table.horizontalHeader().setSectionResizeMode(2, QHeaderView.Stretch)
         self.table.setSelectionBehavior(QTableWidget.SelectRows)
         self.table.setEditTriggers(QTableWidget.NoEditTriggers)
@@ -63,26 +63,70 @@ class LedgerView(QWidget):
         # --- Summary Panel ---
         summary_layout = QHBoxLayout()
         
-        self.summary_label = QLabel("Total Procurement: ₹0.00   |   Total Payment: ₹0.00   |   Current Balance: ₹0.00")
-        self.summary_label.setStyleSheet("font-size: 16px; font-weight: bold; padding: 10px; background-color: #34495e; border-radius: 5px;")
-        self.summary_label.setAlignment(Qt.AlignCenter)
+        self.lbl_tot_proc = QLabel("Total Procurement\n₹0.00")
+        self.lbl_tot_pay = QLabel("Total Payment\n₹0.00")
+        self.lbl_cur_bal = QLabel("Current Balance\n₹0.00")
         
-        summary_layout.addWidget(self.summary_label)
+        self.card_style = """
+            QLabel {
+                background-color: #2c3e50;
+                color: white;
+                border-radius: 8px;
+                padding: 15px;
+                font-size: 16px;
+                font-weight: bold;
+            }
+        """
+        self.lbl_tot_proc.setStyleSheet(self.card_style)
+        self.lbl_tot_pay.setStyleSheet(self.card_style)
+        self.lbl_cur_bal.setStyleSheet(self.card_style)
+        
+        self.lbl_tot_proc.setAlignment(Qt.AlignCenter)
+        self.lbl_tot_pay.setAlignment(Qt.AlignCenter)
+        self.lbl_cur_bal.setAlignment(Qt.AlignCenter)
+        
+        summary_layout.addWidget(self.lbl_tot_proc)
+        summary_layout.addWidget(self.lbl_tot_pay)
+        summary_layout.addWidget(self.lbl_cur_bal)
+        
         layout.addLayout(summary_layout)
         
         # --- Bottom Actions ---
         action_layout = QHBoxLayout()
         action_layout.addStretch()
         
-        self.edit_btn = QPushButton("Edit Entry")
+        self.edit_btn = QPushButton("✏️ Edit Entry")
         self.edit_btn.clicked.connect(self.edit_entry)
         self.edit_btn.setEnabled(False)
+        self.edit_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #2980b9;
+                color: white;
+                border-radius: 5px;
+                padding: 10px 20px;
+                font-weight: bold;
+                font-size: 14px;
+            }
+            QPushButton:disabled { background-color: #7f8c8d; }
+            QPushButton:hover { background-color: #3498db; }
+        """)
         action_layout.addWidget(self.edit_btn)
         
-        self.delete_btn = QPushButton("Delete Entry")
+        self.delete_btn = QPushButton("🗑️ Delete Entry")
         self.delete_btn.clicked.connect(self.delete_entry)
         self.delete_btn.setEnabled(False)
-        self.delete_btn.setStyleSheet("background-color: #c0392b;")
+        self.delete_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #c0392b;
+                color: white;
+                border-radius: 5px;
+                padding: 10px 20px;
+                font-weight: bold;
+                font-size: 14px;
+            }
+            QPushButton:disabled { background-color: #7f8c8d; }
+            QPushButton:hover { background-color: #e74c3c; }
+        """)
         action_layout.addWidget(self.delete_btn)
         
         layout.addLayout(action_layout)
@@ -119,10 +163,11 @@ class LedgerView(QWidget):
         return None
             
     def update_summary(self, *args):
-        # The true summary will be computed in generate_ledger()
         supplier_id = self.get_selected_supplier_id()
         if not supplier_id:
-            self.summary_label.setText("Total Procurement: ₹0.00   |   Total Payment: ₹0.00   |   Current Balance: ₹0.00")
+            self.lbl_tot_proc.setText("Total Procurement\n₹0.00")
+            self.lbl_tot_pay.setText("Total Payment\n₹0.00")
+            self.lbl_cur_bal.setText("Current Balance\n₹0.00")
             
     def on_selection_changed(self):
         selected_rows = self.table.selectionModel().selectedRows()
@@ -284,13 +329,22 @@ class LedgerView(QWidget):
         sup = self.db.get_supplier_by_id(supplier_id)
         final_balance = sup[2] if sup else 0.0 # Or current_balance if only for date range
         
-        color = "#27ae60" if final_balance <= 0 else "#e74c3c" # red if we owe them (positive balance)
+        color = "#2ecc71" if final_balance <= 0 else "#e74c3c" # green if we are good, red if we owe them
         
-        summary_text = (f"Total Procurement: ₹{total_procurement:.2f}   |   "
-                        f"Total Payment: ₹{total_payment:.2f}   |   "
-                        f"Current Balance: <span style='color:{color};'>₹{final_balance:.2f}</span>")
+        self.lbl_tot_proc.setText(f"Total Procurement\n₹{total_procurement:.2f}")
+        self.lbl_tot_pay.setText(f"Total Payment\n₹{total_payment:.2f}")
         
-        self.summary_label.setText(summary_text)
+        self.lbl_cur_bal.setText(f"Current Balance\n₹{final_balance:.2f}")
+        self.lbl_cur_bal.setStyleSheet(f"""
+            QLabel {{
+                background-color: #2c3e50;
+                color: {color};
+                border-radius: 8px;
+                padding: 15px;
+                font-size: 16px;
+                font-weight: bold;
+            }}
+        """)
         
         self.edit_btn.setEnabled(False)
         self.delete_btn.setEnabled(False)
