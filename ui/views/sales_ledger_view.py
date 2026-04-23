@@ -19,12 +19,14 @@ class SalesLedgerView(QWidget):
         controls_layout.addWidget(QLabel("Customer:"))
         self.customer_combo = QComboBox()
         self.customer_combo.setEditable(True)
+        self.customer_combo.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         controls_layout.addWidget(self.customer_combo)
         
         controls_layout.addWidget(QLabel("From:"))
         self.from_date = QDateEdit()
         self.from_date.setDate(QDate.currentDate().addMonths(-1))
         self.from_date.setCalendarPopup(True)
+        self.from_date.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         self.from_date.setDisplayFormat("dd-MM-yyyy")
         controls_layout.addWidget(self.from_date)
         
@@ -32,6 +34,7 @@ class SalesLedgerView(QWidget):
         self.to_date = QDateEdit()
         self.to_date.setDate(QDate.currentDate())
         self.to_date.setCalendarPopup(True)
+        self.to_date.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         self.to_date.setDisplayFormat("dd-MM-yyyy")
         controls_layout.addWidget(self.to_date)
         

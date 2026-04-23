@@ -13,7 +13,7 @@ class MainWindow(QMainWindow):
     def __init__(self, db):
         super().__init__()
         self.db = db
-        self.setWindowTitle("Copper Scrap Manager - Admin")
+        self.setWindowTitle("MetalFlow ERP - Admin")
         self.setMinimumSize(1200, 800)
         
         self.init_ui()

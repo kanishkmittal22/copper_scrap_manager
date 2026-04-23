@@ -1,5 +1,5 @@
 from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QComboBox, 
-                             QDateEdit, QPushButton, QTableWidget, QTableWidgetItem, QHeaderView, QLabel, QCompleter, QMessageBox)
+                             QDateEdit, QPushButton, QTableWidget, QTableWidgetItem, QHeaderView, QLabel, QCompleter, QMessageBox, QSizePolicy)
 from PyQt5.QtCore import Qt, QDate
 
 from ui.views.procurement_entry_dialog import ProcurementEntryDialog
@@ -20,12 +20,14 @@ class LedgerView(QWidget):
         controls_layout.addWidget(QLabel("Supplier:"))
         self.supplier_combo = QComboBox()
         self.supplier_combo.setEditable(True)
+        self.supplier_combo.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         controls_layout.addWidget(self.supplier_combo)
         
         controls_layout.addWidget(QLabel("From:"))
         self.from_date = QDateEdit()
         self.from_date.setDate(QDate.currentDate().addMonths(-1))
         self.from_date.setCalendarPopup(True)
+        self.from_date.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         self.from_date.setDisplayFormat("dd-MM-yyyy")
         controls_layout.addWidget(self.from_date)
         
@@ -33,6 +35,7 @@ class LedgerView(QWidget):
         self.to_date = QDateEdit()
         self.to_date.setDate(QDate.currentDate())
         self.to_date.setCalendarPopup(True)
+        self.to_date.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         self.to_date.setDisplayFormat("dd-MM-yyyy")
         controls_layout.addWidget(self.to_date)
         
@@ -95,8 +98,6 @@ class LedgerView(QWidget):
         
         # --- Bottom Actions ---
         action_layout = QHBoxLayout()
-        
-        from PyQt5.QtWidgets import QSizePolicy
         
         self.edit_btn = QPushButton("Edit Selected")
         self.edit_btn.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
