@@ -34,7 +34,7 @@ class MainWindow(QMainWindow):
         sidebar_layout.setSpacing(5)
         
         # App Title in Sidebar
-        app_title = QLabel("Scrap Manager")
+        app_title = QLabel("ERP Manager")
         app_title.setStyleSheet("color: #00a8ff; font-size: 20px; font-weight: bold; padding: 10px 20px; margin-bottom: 20px;")
         sidebar_layout.addWidget(app_title)
         
@@ -48,9 +48,9 @@ class MainWindow(QMainWindow):
         sidebar_layout.addWidget(self.btn_ledger)
         
         # --- Sales Section ---
-        sales_label = QLabel("--- SALES ---")
-        sales_label.setStyleSheet("color: #7f8fa6; font-size: 12px; font-weight: bold; padding-left: 20px; margin-top: 15px; margin-bottom: 5px;")
-        sidebar_layout.addWidget(sales_label)
+        # sales_label = QLabel("--- SALES ---")
+        # sales_label.setStyleSheet("color: #7f8fa6; font-size: 12px; font-weight: bold; padding-left: 20px; margin-top: 15px; margin-bottom: 5px;")
+        # sidebar_layout.addWidget(sales_label)
         
         self.btn_customers = self.create_nav_button("👥 Customers", 2)
         self.btn_sales_ledger = self.create_nav_button("📈 Sales Ledger", 3)
@@ -59,9 +59,9 @@ class MainWindow(QMainWindow):
         sidebar_layout.addWidget(self.btn_sales_ledger)
         
         # --- Reports Section ---
-        reports_label = QLabel("--- REPORTS ---")
-        reports_label.setStyleSheet("color: #7f8fa6; font-size: 12px; font-weight: bold; padding-left: 20px; margin-top: 15px; margin-bottom: 5px;")
-        sidebar_layout.addWidget(reports_label)
+        # reports_label = QLabel("--- REPORTS ---")
+        # reports_label.setStyleSheet("color: #7f8fa6; font-size: 12px; font-weight: bold; padding-left: 20px; margin-top: 15px; margin-bottom: 5px;")
+        # sidebar_layout.addWidget(reports_label)
         
         self.btn_cash_book = self.create_nav_button("📒 Daily Cash Book", 4)
         self.btn_inventory_report = self.create_nav_button("📦 Daily Inventory", 5)

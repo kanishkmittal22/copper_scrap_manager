@@ -45,7 +45,7 @@ class LoginDialog(QDialog):
         password = self.pass_input.text().strip()
         
         # Hardcoded credentials
-        if username == "Kanishk" and password == "1321":
+        if username == "Kanishk" and password == "1312":
             self.accept()
         else:
             QMessageBox.critical(self, "Login Failed", "Invalid username or password.")

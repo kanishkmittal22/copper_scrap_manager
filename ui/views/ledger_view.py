@@ -55,6 +55,8 @@ class LedgerView(QWidget):
         self.table.setColumnCount(6)
         self.table.setHorizontalHeaderLabels(["Date", "Type", "Reference", "Debit (Purchase)", "Credit (Payment)", "Balance"])
         self.table.horizontalHeader().setSectionResizeMode(2, QHeaderView.Stretch)
+        self.table.horizontalHeader().setSectionResizeMode(3, QHeaderView.ResizeToContents)
+        self.table.horizontalHeader().setSectionResizeMode(4, QHeaderView.ResizeToContents)
         self.table.setSelectionBehavior(QTableWidget.SelectRows)
         self.table.setEditTriggers(QTableWidget.NoEditTriggers)
         

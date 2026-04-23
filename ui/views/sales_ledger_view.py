@@ -54,6 +54,8 @@ class SalesLedgerView(QWidget):
         self.table.setColumnCount(6)
         self.table.setHorizontalHeaderLabels(["Date", "Type", "Reference", "Debit (Sales)", "Credit (Payment)", "Balance"])
         self.table.horizontalHeader().setSectionResizeMode(2, QHeaderView.Stretch)
+        self.table.horizontalHeader().setSectionResizeMode(3, QHeaderView.ResizeToContents)
+        self.table.horizontalHeader().setSectionResizeMode(4, QHeaderView.ResizeToContents)
         self.table.setSelectionBehavior(QTableWidget.SelectRows)
         self.table.setEditTriggers(QTableWidget.NoEditTriggers)
         
@@ -293,7 +295,7 @@ class SalesLedgerView(QWidget):
         cust = self.db.get_customer_by_id(customer_id)
         final_balance = cust[2] if cust else 0.0
         
-        color = "#e74c3c" if final_balance > 0 else "#2ecc71" # red if they owe us (positive), green if good (<= 0)
+        color = "#2ecc71" if final_balance > 0 else "#e74c3c" # Green if they owe us (positive), red if good (<= 0)
         
         self.lbl_tot_sales.setText(f"Total Sales\n₹{total_sales:.2f}")
         self.lbl_tot_pay.setText(f"Total Payment Received\n₹{total_payment:.2f}")
