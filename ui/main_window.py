@@ -3,10 +3,6 @@ from PyQt5.QtCore import Qt
 
 # Import views
 from ui.views.supplier_view import SupplierView
-from ui.views.procurement_view import ProcurementView
-from ui.views.procurement_management_view import ProcurementManagementView
-from ui.views.payment_view import PaymentView
-from ui.views.payment_management_view import PaymentManagementView
 from ui.views.ledger_view import LedgerView
 from ui.views.customer_management_view import CustomerManagementView
 from ui.views.sales_ledger_view import SalesLedgerView
@@ -46,17 +42,9 @@ class MainWindow(QMainWindow):
         self.nav_buttons = []
         
         self.btn_suppliers = self.create_nav_button("🏢 Suppliers", 0)
-        self.btn_procurement = self.create_nav_button("🛒 New Procurement", 1)
-        self.btn_proc_mgmt = self.create_nav_button("📋 Manage Procurements", 2)
-        self.btn_payments = self.create_nav_button("💳 New Payment", 3)
-        self.btn_pay_mgmt = self.create_nav_button("💸 Manage Payments", 4)
-        self.btn_ledger = self.create_nav_button("📊 Purchase Ledger", 5)
+        self.btn_ledger = self.create_nav_button("📊 Purchase Ledger", 1)
         
         sidebar_layout.addWidget(self.btn_suppliers)
-        sidebar_layout.addWidget(self.btn_procurement)
-        sidebar_layout.addWidget(self.btn_proc_mgmt)
-        sidebar_layout.addWidget(self.btn_payments)
-        sidebar_layout.addWidget(self.btn_pay_mgmt)
         sidebar_layout.addWidget(self.btn_ledger)
         
         # --- Sales Section ---
@@ -64,8 +52,8 @@ class MainWindow(QMainWindow):
         sales_label.setStyleSheet("color: #7f8fa6; font-size: 12px; font-weight: bold; padding-left: 20px; margin-top: 15px; margin-bottom: 5px;")
         sidebar_layout.addWidget(sales_label)
         
-        self.btn_customers = self.create_nav_button("👥 Customers", 6)
-        self.btn_sales_ledger = self.create_nav_button("📈 Sales Ledger", 7)
+        self.btn_customers = self.create_nav_button("👥 Customers", 2)
+        self.btn_sales_ledger = self.create_nav_button("📈 Sales Ledger", 3)
         
         sidebar_layout.addWidget(self.btn_customers)
         sidebar_layout.addWidget(self.btn_sales_ledger)
@@ -75,8 +63,8 @@ class MainWindow(QMainWindow):
         reports_label.setStyleSheet("color: #7f8fa6; font-size: 12px; font-weight: bold; padding-left: 20px; margin-top: 15px; margin-bottom: 5px;")
         sidebar_layout.addWidget(reports_label)
         
-        self.btn_cash_book = self.create_nav_button("📒 Daily Cash Book", 8)
-        self.btn_inventory_report = self.create_nav_button("📦 Daily Inventory", 9)
+        self.btn_cash_book = self.create_nav_button("📒 Daily Cash Book", 4)
+        self.btn_inventory_report = self.create_nav_button("📦 Daily Inventory", 5)
         
         sidebar_layout.addWidget(self.btn_cash_book)
         sidebar_layout.addWidget(self.btn_inventory_report)
@@ -103,10 +91,6 @@ class MainWindow(QMainWindow):
         
         # Add Views
         self.supplier_view = SupplierView(self.db)
-        self.procurement_view = ProcurementView(self.db)
-        self.proc_mgmt_view = ProcurementManagementView(self.db)
-        self.payment_view = PaymentView(self.db)
-        self.pay_mgmt_view = PaymentManagementView(self.db)
         self.ledger_view = LedgerView(self.db)
         self.customer_view = CustomerManagementView(self.db)
         self.sales_ledger_view = SalesLedgerView(self.db)
@@ -114,10 +98,6 @@ class MainWindow(QMainWindow):
         self.inventory_report_view = DailyInventoryReportView(self.db)
         
         self.stacked_widget.addWidget(self.supplier_view)
-        self.stacked_widget.addWidget(self.procurement_view)
-        self.stacked_widget.addWidget(self.proc_mgmt_view)
-        self.stacked_widget.addWidget(self.payment_view)
-        self.stacked_widget.addWidget(self.pay_mgmt_view)
         self.stacked_widget.addWidget(self.ledger_view)
         self.stacked_widget.addWidget(self.customer_view)
         self.stacked_widget.addWidget(self.sales_ledger_view)
@@ -146,17 +126,14 @@ class MainWindow(QMainWindow):
         # Update header
         titles = [
             "Supplier Management", 
-            "New Scrap Procurement", 
-            "Manage Procurement Entries",
-            "New Payment Entry", 
-            "Manage Payment Entries",
             "Purchase Ledger",
             "Customer Management",
             "Sales Ledger",
             "Daily Cash Book",
             "Daily Inventory Report"
         ]
-        self.header_label.setText(titles[index])
+        if index < len(titles):
+            self.header_label.setText(titles[index])
         
         # Refresh data in the current view
         current_view = self.stacked_widget.currentWidget()

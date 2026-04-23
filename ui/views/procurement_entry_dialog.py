@@ -1,14 +1,24 @@
-from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, 
+from PyQt5.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QGridLayout, 
                              QLabel, QLineEdit, QComboBox, QPushButton, 
                              QTableWidget, QTableWidgetItem, QHeaderView, QMessageBox, QDateEdit, QCompleter)
 from PyQt5.QtCore import Qt, QDate
 
-class ProcurementView(QWidget):
-    def __init__(self, db):
-        super().__init__()
+class ProcurementEntryDialog(QDialog):
+    def __init__(self, db, procurement_id=None, parent=None):
+        super().__init__(parent)
         self.db = db
-        self.init_ui()
+        self.procurement_id = procurement_id
         
+        title = "Edit Procurement Entry" if procurement_id else "New Procurement Entry"
+        self.setWindowTitle(title)
+        self.setMinimumSize(800, 600)
+        
+        self.init_ui()
+        if self.procurement_id:
+            self.load_data()
+        else:
+            self.refresh_data()
+            
     def init_ui(self):
         main_layout = QVBoxLayout(self)
         
@@ -128,7 +138,7 @@ class ProcurementView(QWidget):
         btn_layout = QHBoxLayout()
         btn_layout.addStretch()
         
-        self.calc_btn = QPushButton("Calculate")
+        self.calc_btn = QPushButton("Calculate Balance")
         self.calc_btn.clicked.connect(self.calculate_totals)
         btn_layout.addWidget(self.calc_btn)
         
@@ -137,22 +147,22 @@ class ProcurementView(QWidget):
         self.submit_btn.setEnabled(False) # Disabled until calculated
         btn_layout.addWidget(self.submit_btn)
         
+        self.cancel_btn = QPushButton("Cancel")
+        self.cancel_btn.clicked.connect(self.reject)
+        btn_layout.addWidget(self.cancel_btn)
+        
         main_layout.addLayout(btn_layout)
         
-    def refresh_data(self):
-        self.entry_num_input.setText(self.db.generate_entry_number())
-        
+    def populate_suppliers(self):
         try:
             self.supplier_combo.currentTextChanged.disconnect(self.on_supplier_changed)
         except TypeError:
             pass
             
-        # Populate suppliers
         self.supplier_combo.clear()
         suppliers = self.db.get_all_suppliers()
         names = []
         for sup in suppliers:
-            # id, name, current_balance, opening_balance
             self.supplier_combo.addItem(sup[1], sup[0])
             names.append(sup[1])
             
@@ -163,8 +173,51 @@ class ProcurementView(QWidget):
         
         self.supplier_combo.setCurrentIndex(-1)
         self.supplier_combo.currentTextChanged.connect(self.on_supplier_changed)
+
+    def refresh_data(self):
+        self.entry_num_input.setText(self.db.generate_entry_number())
+        self.populate_suppliers()
         self.on_supplier_changed()
         
+    def load_data(self):
+        self.populate_suppliers()
+        result = self.db.get_procurement_by_id(self.procurement_id)
+        if not result:
+            return
+            
+        data = result['data']
+        items = result['items']
+        
+        self.entry_num_input.setText(data['entry_number'])
+        self.date_input.setDate(QDate.fromString(data['date'], Qt.ISODate))
+        
+        index = self.supplier_combo.findData(data['supplier_id'])
+        if index >= 0:
+            self.supplier_combo.setCurrentIndex(index)
+            
+        self.total_weight_input.setText(str(data['total_weight']))
+        self.rate_input.setText(str(data['rate']))
+        self.base_amount_input.setText(str(data['base_amount']))
+        self.remarks_input.setText(data['remarks'] or "")
+        
+        self.table.setRowCount(0)
+        for i, item in enumerate(items):
+            self.table.insertRow(i)
+            self.table.setItem(i, 0, QTableWidgetItem(item['scrap_type']))
+            self.table.setItem(i, 1, QTableWidgetItem(str(item['weight'])))
+            self.table.setItem(i, 2, QTableWidgetItem(str(item['rate'])))
+            self.table.setItem(i, 3, QTableWidgetItem(str(item['amount'])))
+            self.table.setItem(i, 4, QTableWidgetItem(item['adjustment_type']))
+            
+        # Calc prev balance
+        sup = self.db.get_supplier_by_id(data['supplier_id'])
+        if sup:
+            # Revert current transaction effect to show prev balance accurately
+            prev_balance = sup[2] - data['grand_total']
+            self.prev_balance_input.setText(f"{prev_balance:.2f}")
+            
+        self.calculate_totals()
+
     def get_selected_supplier_id(self):
         text = self.supplier_combo.currentText().strip()
         index = self.supplier_combo.findText(text, Qt.MatchFixedString)
@@ -173,14 +226,22 @@ class ProcurementView(QWidget):
         return None
         
     def on_supplier_changed(self):
-        supplier_id = self.get_selected_supplier_id()
-        if supplier_id:
-            sup = self.db.get_supplier_by_id(supplier_id)
+        self.submit_btn.setEnabled(False)
+        sup_id = self.get_selected_supplier_id()
+        if sup_id:
+            sup = self.db.get_supplier_by_id(sup_id)
             if sup:
-                self.prev_balance_input.setText(f"{sup[2]:.2f}")
+                if self.procurement_id:
+                    result = self.db.get_procurement_by_id(self.procurement_id)
+                    if result and result['data']['supplier_id'] == sup_id:
+                        prev_balance = sup[2] - result['data']['grand_total']
+                    else:
+                        prev_balance = sup[2]
+                else:
+                    prev_balance = sup[2]
+                self.prev_balance_input.setText(f"{prev_balance:.2f}")
         else:
             self.prev_balance_input.setText("0.00")
-        self.submit_btn.setEnabled(False)
         
     def calculate_base_amount(self):
         try:
@@ -232,6 +293,11 @@ class ProcurementView(QWidget):
             self.submit_btn.setEnabled(False)
             
     def calculate_totals(self):
+        sup_id = self.get_selected_supplier_id()
+        if not sup_id:
+            QMessageBox.warning(self, "Validation", "Please select a valid supplier.")
+            return
+            
         try:
             base_amount = float(self.base_amount_input.text() or 0)
             
@@ -288,21 +354,13 @@ class ProcurementView(QWidget):
                 'adjustment_type': self.table.item(row, 4).text()
             })
             
-        success, msg = self.db.add_procurement(data, items)
+        if self.procurement_id:
+            success, msg = self.db.update_procurement(self.procurement_id, data, items)
+        else:
+            success, msg = self.db.add_procurement(data, items)
+            
         if success:
             QMessageBox.information(self, "Success", msg)
-            self.clear_form()
-            self.refresh_data()
+            self.accept()
         else:
             QMessageBox.warning(self, "Error", msg)
-            
-    def clear_form(self):
-        self.total_weight_input.clear()
-        self.rate_input.clear()
-        self.base_amount_input.clear()
-        self.remarks_input.clear()
-        self.table.setRowCount(0)
-        self.net_adj_input.setText("0.00")
-        self.grand_total_input.setText("0.00")
-        self.new_balance_input.setText("0.00")
-        self.submit_btn.setEnabled(False)

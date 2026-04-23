@@ -1,6 +1,9 @@
-from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QComboBox, 
-                             QDateEdit, QPushButton, QTableWidget, QTableWidgetItem, QHeaderView, QLabel, QCompleter)
+from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QComboBox, 
+                             QDateEdit, QPushButton, QTableWidget, QTableWidgetItem, QHeaderView, QLabel, QCompleter, QMessageBox)
 from PyQt5.QtCore import Qt, QDate
+
+from ui.views.procurement_entry_dialog import ProcurementEntryDialog
+from ui.views.payment_entry_dialog import PaymentEntryDialog
 
 class LedgerView(QWidget):
     def __init__(self, db):
@@ -11,13 +14,7 @@ class LedgerView(QWidget):
     def init_ui(self):
         layout = QVBoxLayout(self)
         
-        # --- Top Balance Label ---
-        self.balance_header = QLabel("Current Balance: ₹0.00")
-        self.balance_header.setStyleSheet("font-size: 22px; font-weight: bold; color: #27ae60; margin-bottom: 10px;")
-        self.balance_header.setAlignment(Qt.AlignCenter)
-        layout.addWidget(self.balance_header)
-        
-        # Controls
+        # --- Top Filters ---
         controls_layout = QHBoxLayout()
         
         controls_layout.addWidget(QLabel("Supplier:"))
@@ -43,21 +40,58 @@ class LedgerView(QWidget):
         self.gen_btn.clicked.connect(self.generate_ledger)
         controls_layout.addWidget(self.gen_btn)
         
+        self.add_proc_btn = QPushButton("Create Procurement")
+        self.add_proc_btn.clicked.connect(self.create_procurement)
+        controls_layout.addWidget(self.add_proc_btn)
+        
+        self.add_pay_btn = QPushButton("Create Payment")
+        self.add_pay_btn.clicked.connect(self.create_payment)
+        controls_layout.addWidget(self.add_pay_btn)
+        
         layout.addLayout(controls_layout)
         
-        # Table
+        # --- Table ---
         self.table = QTableWidget()
         self.table.setColumnCount(6)
-        self.table.setHorizontalHeaderLabels(["Date", "Type", "Reference", "Credit (Purchase)", "Debit (Payment)", "Balance"])
+        self.table.setHorizontalHeaderLabels(["Date", "Transaction Type", "Reference Details", "Debit (Purchase Amount)", "Credit (Payment Amount)", "Balance"])
         self.table.horizontalHeader().setSectionResizeMode(2, QHeaderView.Stretch)
         self.table.setSelectionBehavior(QTableWidget.SelectRows)
         self.table.setEditTriggers(QTableWidget.NoEditTriggers)
         
         layout.addWidget(self.table)
         
+        # --- Summary Panel ---
+        summary_layout = QHBoxLayout()
+        
+        self.summary_label = QLabel("Total Procurement: ₹0.00   |   Total Payment: ₹0.00   |   Current Balance: ₹0.00")
+        self.summary_label.setStyleSheet("font-size: 16px; font-weight: bold; padding: 10px; background-color: #34495e; border-radius: 5px;")
+        self.summary_label.setAlignment(Qt.AlignCenter)
+        
+        summary_layout.addWidget(self.summary_label)
+        layout.addLayout(summary_layout)
+        
+        # --- Bottom Actions ---
+        action_layout = QHBoxLayout()
+        action_layout.addStretch()
+        
+        self.edit_btn = QPushButton("Edit Entry")
+        self.edit_btn.clicked.connect(self.edit_entry)
+        self.edit_btn.setEnabled(False)
+        action_layout.addWidget(self.edit_btn)
+        
+        self.delete_btn = QPushButton("Delete Entry")
+        self.delete_btn.clicked.connect(self.delete_entry)
+        self.delete_btn.setEnabled(False)
+        self.delete_btn.setStyleSheet("background-color: #c0392b;")
+        action_layout.addWidget(self.delete_btn)
+        
+        layout.addLayout(action_layout)
+        
+        self.table.itemSelectionChanged.connect(self.on_selection_changed)
+        
     def refresh_data(self):
         try:
-            self.supplier_combo.currentTextChanged.disconnect(self.update_balance_header)
+            self.supplier_combo.currentTextChanged.disconnect(self.update_summary)
         except TypeError:
             pass
             
@@ -74,8 +108,8 @@ class LedgerView(QWidget):
         self.supplier_combo.setCompleter(completer)
         
         self.supplier_combo.setCurrentIndex(-1)
-        self.supplier_combo.currentTextChanged.connect(self.update_balance_header)
-        self.update_balance_header()
+        self.supplier_combo.currentTextChanged.connect(self.update_summary)
+        self.update_summary()
         
     def get_selected_supplier_id(self):
         text = self.supplier_combo.currentText().strip()
@@ -84,22 +118,89 @@ class LedgerView(QWidget):
             return self.supplier_combo.itemData(index)
         return None
             
-    def update_balance_header(self):
+    def update_summary(self, *args):
+        # The true summary will be computed in generate_ledger()
         supplier_id = self.get_selected_supplier_id()
-        if supplier_id:
-            sup = self.db.get_supplier_by_id(supplier_id)
-            if sup:
-                balance = sup[2]
-                color = "#27ae60" if balance >= 0 else "#e74c3c"
-                self.balance_header.setStyleSheet(f"font-size: 22px; font-weight: bold; color: {color}; margin-bottom: 10px;")
-                self.balance_header.setText(f"Current Balance: ₹{balance:.2f}")
-        else:
-            self.balance_header.setStyleSheet("font-size: 22px; font-weight: bold; color: #27ae60; margin-bottom: 10px;")
-            self.balance_header.setText("Current Balance: ₹0.00")
+        if not supplier_id:
+            self.summary_label.setText("Total Procurement: ₹0.00   |   Total Payment: ₹0.00   |   Current Balance: ₹0.00")
             
+    def on_selection_changed(self):
+        selected_rows = self.table.selectionModel().selectedRows()
+        if selected_rows:
+            # Prevent edit/delete for opening balance row
+            row = selected_rows[0].row()
+            t_type = self.table.item(row, 1).text()
+            if t_type == "Opening Balance":
+                self.edit_btn.setEnabled(False)
+                self.delete_btn.setEnabled(False)
+            else:
+                self.edit_btn.setEnabled(True)
+                self.delete_btn.setEnabled(True)
+        else:
+            self.edit_btn.setEnabled(False)
+            self.delete_btn.setEnabled(False)
+
+    def create_procurement(self):
+        dialog = ProcurementEntryDialog(self.db, parent=self)
+        if dialog.exec_():
+            self.generate_ledger()
+
+    def create_payment(self):
+        dialog = PaymentEntryDialog(self.db, parent=self)
+        if dialog.exec_():
+            self.generate_ledger()
+
+    def edit_entry(self):
+        selected = self.table.selectedItems()
+        if not selected:
+            return
+            
+        row = selected[0].row()
+        t_type = self.table.item(row, 1).text()
+        
+        # Retrieve internal ID stored in UserRole
+        t_id = self.table.item(row, 0).data(Qt.UserRole)
+        
+        if t_type == "Procurement":
+            dialog = ProcurementEntryDialog(self.db, procurement_id=t_id, parent=self)
+            if dialog.exec_():
+                self.generate_ledger()
+        elif t_type == "Payment":
+            dialog = PaymentEntryDialog(self.db, payment_id=t_id, parent=self)
+            if dialog.exec_():
+                self.generate_ledger()
+
+    def delete_entry(self):
+        selected = self.table.selectedItems()
+        if not selected:
+            return
+            
+        row = selected[0].row()
+        t_type = self.table.item(row, 1).text()
+        t_id = self.table.item(row, 0).data(Qt.UserRole)
+        
+        reply = QMessageBox.question(self, 'Confirm Deletion', 
+                                     f"Are you sure you want to delete this {t_type}?",
+                                     QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+                                     
+        if reply == QMessageBox.Yes:
+            if t_type == "Procurement":
+                success, msg = self.db.delete_procurement(t_id)
+            elif t_type == "Payment":
+                success, msg = self.db.delete_payment(t_id)
+            else:
+                return
+                
+            if success:
+                QMessageBox.information(self, "Success", msg)
+                self.generate_ledger()
+            else:
+                QMessageBox.warning(self, "Error", msg)
+
     def generate_ledger(self):
         supplier_id = self.get_selected_supplier_id()
         if not supplier_id:
+            QMessageBox.warning(self, "Warning", "Please select a valid supplier.")
             return
             
         from_d = self.from_date.date().toString(Qt.ISODate)
@@ -124,41 +225,72 @@ class LedgerView(QWidget):
         self.table.setItem(0, 5, bal_item)
         
         current_balance = opening_balance
+        total_procurement = 0.0
+        total_payment = 0.0
         
         for idx, entry in enumerate(entries):
             row = idx + 1
             self.table.insertRow(row)
             
-            date, e_type, ref, credit, debit = entry
+            # db_manager returns: id, date, type, entry_number/id, weight, rate, remarks, debit, credit
+            t_id, date, e_type, ref, weight, rate, remarks, debit, credit = entry
             
-            # Format Date
             date_obj = QDate.fromString(date, Qt.ISODate)
             f_date = date_obj.toString("dd-MM-yyyy") if date_obj.isValid() else date
             
-            # Credit means supplier balance increases (We bought from them)
-            # Debit means supplier balance decreases (We paid them)
-            current_balance += (credit - debit)
+            # Debit = Purchase Amount (Procurement) -> Supplier balance increases
+            # Credit = Payment Amount -> Supplier balance decreases
+            current_balance += (debit - credit)
+            total_procurement += debit
+            total_payment += credit
             
-            self.table.setItem(row, 0, QTableWidgetItem(f_date))
+            # Formatting Reference Details
+            ref_str = ""
+            if e_type == "Procurement":
+                ref_str = f"{ref} | {weight:.2f} kg @ {rate:.2f}"
+                if remarks and remarks.strip():
+                    ref_str += f" | {remarks.strip()}"
+            elif e_type == "Payment":
+                ref_str = f"PayID - {ref}"
+                if remarks and remarks.strip():
+                    ref_str += f" | {remarks.strip()}"
+            
+            item_date = QTableWidgetItem(f_date)
+            item_date.setData(Qt.UserRole, t_id) # Store ID silently for edit/delete
+            self.table.setItem(row, 0, item_date)
+            
             self.table.setItem(row, 1, QTableWidgetItem(e_type))
-            self.table.setItem(row, 2, QTableWidgetItem(ref))
+            self.table.setItem(row, 2, QTableWidgetItem(ref_str))
             
-            cr_item = QTableWidgetItem(f"{credit:.2f}" if credit else "")
-            cr_item.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
-            # Styling for credit
-            if credit:
-                cr_item.setForeground(Qt.darkGreen)
-            self.table.setItem(row, 3, cr_item)
-            
-            db_item = QTableWidgetItem(f"{debit:.2f}" if debit else "")
+            db_item = QTableWidgetItem(f"{debit:.2f}" if debit > 0 else "")
             db_item.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
-            # Styling for debit
-            if debit:
+            if debit > 0:
                 db_item.setForeground(Qt.red)
-            self.table.setItem(row, 4, db_item)
+            self.table.setItem(row, 3, db_item)
+            
+            cr_item = QTableWidgetItem(f"{credit:.2f}" if credit > 0 else "")
+            cr_item.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
+            if credit > 0:
+                cr_item.setForeground(Qt.darkGreen)
+            self.table.setItem(row, 4, cr_item)
             
             bal_item = QTableWidgetItem(f"{current_balance:.2f}")
             bal_item.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
             if current_balance < 0:
-                bal_item.setForeground(Qt.red)
+                bal_item.setForeground(Qt.darkGreen) # Supplier balance is our liability, negative means they owe us
             self.table.setItem(row, 5, bal_item)
+            
+        # Update summary label
+        sup = self.db.get_supplier_by_id(supplier_id)
+        final_balance = sup[2] if sup else 0.0 # Or current_balance if only for date range
+        
+        color = "#27ae60" if final_balance <= 0 else "#e74c3c" # red if we owe them (positive balance)
+        
+        summary_text = (f"Total Procurement: ₹{total_procurement:.2f}   |   "
+                        f"Total Payment: ₹{total_payment:.2f}   |   "
+                        f"Current Balance: <span style='color:{color};'>₹{final_balance:.2f}</span>")
+        
+        self.summary_label.setText(summary_text)
+        
+        self.edit_btn.setEnabled(False)
+        self.delete_btn.setEnabled(False)

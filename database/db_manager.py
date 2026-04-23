@@ -260,17 +260,17 @@ class DatabaseManager:
         with self.get_connection() as conn:
             cursor = conn.cursor()
             
-            # Procurements
+            # Procurements (Debit = Purchase Amount)
             cursor.execute('''
-                SELECT date, 'Procurement' as type, entry_number as reference, grand_total as credit, 0 as debit
+                SELECT id, date, 'Procurement' as type, entry_number as reference, total_weight, rate, remarks, grand_total as debit, 0 as credit
                 FROM procurements
                 WHERE supplier_id = ? AND date >= ? AND date <= ?
             ''', (supplier_id, from_date, to_date))
             procurements = cursor.fetchall()
             
-            # Payments
+            # Payments (Credit = Payment Amount)
             cursor.execute('''
-                SELECT date, 'Payment' as type, remarks as reference, 0 as credit, amount as debit
+                SELECT id, date, 'Payment' as type, id as reference, 0 as total_weight, 0 as rate, remarks, 0 as debit, amount as credit
                 FROM payments
                 WHERE supplier_id = ? AND date >= ? AND date <= ?
             ''', (supplier_id, from_date, to_date))
@@ -278,7 +278,7 @@ class DatabaseManager:
             
             # Combine and sort by date
             all_entries = procurements + payments
-            all_entries.sort(key=lambda x: x[0])
+            all_entries.sort(key=lambda x: x[1]) # date is at index 1
             
             return all_entries
             
