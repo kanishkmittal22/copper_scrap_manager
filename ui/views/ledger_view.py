@@ -93,40 +93,21 @@ class LedgerView(QWidget):
         
         # --- Bottom Actions ---
         action_layout = QHBoxLayout()
-        action_layout.addStretch()
         
-        self.edit_btn = QPushButton("✏️ Edit Entry")
+        from PyQt5.QtWidgets import QSizePolicy
+        
+        self.edit_btn = QPushButton("Edit Selected")
+        self.edit_btn.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         self.edit_btn.clicked.connect(self.edit_entry)
         self.edit_btn.setEnabled(False)
-        self.edit_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #2980b9;
-                color: white;
-                border-radius: 5px;
-                padding: 10px 20px;
-                font-weight: bold;
-                font-size: 14px;
-            }
-            QPushButton:disabled { background-color: #7f8c8d; }
-            QPushButton:hover { background-color: #3498db; }
-        """)
         action_layout.addWidget(self.edit_btn)
         
-        self.delete_btn = QPushButton("🗑️ Delete Entry")
+        self.delete_btn = QPushButton("Delete Selected")
+        self.delete_btn.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        self.delete_btn.setObjectName("danger_btn")
+        self.delete_btn.setProperty("class", "danger")
         self.delete_btn.clicked.connect(self.delete_entry)
         self.delete_btn.setEnabled(False)
-        self.delete_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #c0392b;
-                color: white;
-                border-radius: 5px;
-                padding: 10px 20px;
-                font-weight: bold;
-                font-size: 14px;
-            }
-            QPushButton:disabled { background-color: #7f8c8d; }
-            QPushButton:hover { background-color: #e74c3c; }
-        """)
         action_layout.addWidget(self.delete_btn)
         
         layout.addLayout(action_layout)
