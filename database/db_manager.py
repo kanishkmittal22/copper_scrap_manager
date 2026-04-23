@@ -851,7 +851,7 @@ class DatabaseManager:
             
             # Sales (Debits to Customer Account)
             cursor.execute('''
-                SELECT date, 'Sale' as type, entry_number as reference, total_amount as debit, 0 as credit, id
+                SELECT id, date, 'Sale' as type, entry_number as reference, total_weight as weight, rate, remarks, total_amount as debit, 0 as credit
                 FROM sales
                 WHERE customer_id = ? AND date >= ? AND date <= ?
             ''', (customer_id, from_date, to_date))
@@ -859,7 +859,7 @@ class DatabaseManager:
             
             # Payments Received (Credits to Customer Account)
             cursor.execute('''
-                SELECT date, 'Payment Received' as type, remarks as reference, 0 as debit, amount as credit, id
+                SELECT id, date, 'Payment Received' as type, id as reference, 0 as weight, 0 as rate, remarks, 0 as debit, amount as credit
                 FROM payments_received
                 WHERE customer_id = ? AND date >= ? AND date <= ?
             ''', (customer_id, from_date, to_date))
@@ -867,7 +867,7 @@ class DatabaseManager:
             
             # Combine and sort by date
             all_entries = sales + payments
-            all_entries.sort(key=lambda x: x[0])
+            all_entries.sort(key=lambda x: x[1]) # Sort by date
             
             return all_entries
             
