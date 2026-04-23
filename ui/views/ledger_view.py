@@ -99,7 +99,7 @@ class LedgerView(QWidget):
         self.edit_btn = QPushButton("Edit Selected")
         self.edit_btn.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         self.edit_btn.clicked.connect(self.edit_entry)
-        self.edit_btn.setEnabled(False)
+        # self.edit_btn.setEnabled(False)
         action_layout.addWidget(self.edit_btn)
         
         self.delete_btn = QPushButton("Delete Selected")
@@ -107,12 +107,9 @@ class LedgerView(QWidget):
         self.delete_btn.setObjectName("danger_btn")
         self.delete_btn.setProperty("class", "danger")
         self.delete_btn.clicked.connect(self.delete_entry)
-        self.delete_btn.setEnabled(False)
         action_layout.addWidget(self.delete_btn)
         
         layout.addLayout(action_layout)
-        
-        self.table.itemSelectionChanged.connect(self.on_selection_changed)
         
     def refresh_data(self):
         try:
@@ -150,21 +147,18 @@ class LedgerView(QWidget):
             self.lbl_tot_pay.setText("Total Payment\n₹0.00")
             self.lbl_cur_bal.setText("Current Balance\n₹0.00")
             
-    def on_selection_changed(self):
-        selected_rows = self.table.selectionModel().selectedRows()
-        if selected_rows:
-            # Prevent edit/delete for opening balance row
-            row = selected_rows[0].row()
-            t_type = self.table.item(row, 1).text()
-            if t_type == "Opening Balance":
-                self.edit_btn.setEnabled(False)
-                self.delete_btn.setEnabled(False)
-            else:
-                self.edit_btn.setEnabled(True)
-                self.delete_btn.setEnabled(True)
-        else:
-            self.edit_btn.setEnabled(False)
-            self.delete_btn.setEnabled(False)
+    def get_selected_entry_info(self):
+        selected = self.table.selectedItems()
+        if not selected:
+            return None, None
+            
+        row = selected[0].row()
+        if row == 0:
+            return None, None # Opening balance row
+            
+        t_type = self.table.item(row, 1).text()
+        t_id = self.table.item(row, 0).data(Qt.UserRole)
+        return t_type, t_id
 
     def create_procurement(self):
         dialog = ProcurementEntryDialog(self.db, parent=self)
@@ -177,15 +171,10 @@ class LedgerView(QWidget):
             self.generate_ledger()
 
     def edit_entry(self):
-        selected = self.table.selectedItems()
-        if not selected:
+        t_type, t_id = self.get_selected_entry_info()
+        if not t_id:
+            QMessageBox.warning(self, "Selection", "Please select a valid transaction to edit.")
             return
-            
-        row = selected[0].row()
-        t_type = self.table.item(row, 1).text()
-        
-        # Retrieve internal ID stored in UserRole
-        t_id = self.table.item(row, 0).data(Qt.UserRole)
         
         if t_type == "Procurement":
             dialog = ProcurementEntryDialog(self.db, procurement_id=t_id, parent=self)
@@ -197,13 +186,10 @@ class LedgerView(QWidget):
                 self.generate_ledger()
 
     def delete_entry(self):
-        selected = self.table.selectedItems()
-        if not selected:
+        t_type, t_id = self.get_selected_entry_info()
+        if not t_id:
+            QMessageBox.warning(self, "Selection", "Please select a valid transaction to delete.")
             return
-            
-        row = selected[0].row()
-        t_type = self.table.item(row, 1).text()
-        t_id = self.table.item(row, 0).data(Qt.UserRole)
         
         reply = QMessageBox.question(self, 'Confirm Deletion', 
                                      f"Are you sure you want to delete this {t_type}?",
@@ -326,6 +312,3 @@ class LedgerView(QWidget):
                 font-weight: bold;
             }}
         """)
-        
-        self.edit_btn.setEnabled(False)
-        self.delete_btn.setEnabled(False)
