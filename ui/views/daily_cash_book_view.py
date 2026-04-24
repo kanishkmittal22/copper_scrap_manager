@@ -46,8 +46,10 @@ class DailyCashBookView(QWidget):
         
         self.inflows_table = QTableWidget()
         self.inflows_table.setColumnCount(3)
-        self.inflows_table.setHorizontalHeaderLabels(["Customer Name", "Amount Details", "Total"])
+        self.inflows_table.setHorizontalHeaderLabels(["Customer Name", "Amount Details", "Total Amount"])
+        self.inflows_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeToContents)
         self.inflows_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.Stretch)
+        self.inflows_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeToContents)
         self.inflows_table.setEditTriggers(QTableWidget.NoEditTriggers)
         left_layout.addWidget(self.inflows_table)
         
@@ -61,8 +63,10 @@ class DailyCashBookView(QWidget):
         
         self.outflows_table = QTableWidget()
         self.outflows_table.setColumnCount(3)
-        self.outflows_table.setHorizontalHeaderLabels(["Supplier Name", "Amount Details", "Total"])
+        self.outflows_table.setHorizontalHeaderLabels(["Supplier Name", "Amount Details", "Total Amount"])
+        self.outflows_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeToContents)
         self.outflows_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.Stretch)
+        self.outflows_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeToContents)
         self.outflows_table.setEditTriggers(QTableWidget.NoEditTriggers)
         right_layout.addWidget(self.outflows_table)
         
@@ -75,9 +79,9 @@ class DailyCashBookView(QWidget):
         calc_frame.setStyleSheet("""
             QFrame {
                 background-color: #2c3e50;
-                border-radius: 8px;
-                padding: 10px;
-                margin-top: 15px;
+                border-radius: 6px;
+                padding: 8px;
+                margin-top: 10px;
             }
             QLabel {
                 font-size: 18px;

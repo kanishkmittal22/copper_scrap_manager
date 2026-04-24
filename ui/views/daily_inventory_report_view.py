@@ -51,7 +51,9 @@ class DailyInventoryReportView(QWidget):
         self.scrap_table = QTableWidget()
         self.scrap_table.setColumnCount(3)
         self.scrap_table.setHorizontalHeaderLabels(["Supplier Name", "Quantity Details", "Total Weight"])
+        self.scrap_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeToContents)
         self.scrap_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.Stretch)
+        self.scrap_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeToContents)
         self.scrap_table.setEditTriggers(QTableWidget.NoEditTriggers)
         left_layout.addWidget(self.scrap_table)
         
@@ -66,7 +68,9 @@ class DailyInventoryReportView(QWidget):
         self.rod_table = QTableWidget()
         self.rod_table.setColumnCount(3)
         self.rod_table.setHorizontalHeaderLabels(["Customer Name", "Quantity Details", "Total Weight"])
+        self.rod_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeToContents)
         self.rod_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.Stretch)
+        self.rod_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeToContents)
         self.rod_table.setEditTriggers(QTableWidget.NoEditTriggers)
         right_layout.addWidget(self.rod_table)
         
@@ -79,9 +83,9 @@ class DailyInventoryReportView(QWidget):
         calc_frame.setStyleSheet("""
             QFrame {
                 background-color: #2c3e50;
-                border-radius: 8px;
-                padding: 15px;
-                margin-top: 15px;
+                border-radius: 6px;
+                padding: 5px;
+                margin-top: 5px;
             }
             QLabel {
                 font-size: 16px;

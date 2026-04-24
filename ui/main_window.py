@@ -14,9 +14,29 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.db = db
         self.setWindowTitle("MetalFlow ERP - Admin")
-        self.setMinimumSize(1200, 800)
+        # self.setMinimumSize(1200, 800)
+        
+        # Get screen size
+        screen = self.screen().availableGeometry()
+
+        # Responsive size (80% of screen)
+        self.resize(
+            int(screen.width() * 0.8),
+            int(screen.height() * 0.8)
+        )
         
         self.init_ui()
+    
+    # 🔹 Center window AFTER it is shown
+    def showEvent(self, event):
+        super().showEvent(event)
+        self.center_window()
+
+    def center_window(self):
+        qr = self.frameGeometry()
+        cp = self.screen().availableGeometry().center()
+        qr.moveCenter(cp)
+        self.move(qr.topLeft())
         
     def init_ui(self):
         central_widget = QWidget()
