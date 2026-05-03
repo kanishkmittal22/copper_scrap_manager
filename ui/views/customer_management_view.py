@@ -1,6 +1,6 @@
 from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QFormLayout, 
                              QLineEdit, QPushButton, QTableWidget, QTableWidgetItem, 
-                             QHeaderView, QMessageBox)
+                             QHeaderView, QMessageBox, QLabel, QFrame)
 from PyQt5.QtCore import Qt
 
 class CustomerManagementView(QWidget):
@@ -53,20 +53,56 @@ class CustomerManagementView(QWidget):
         
         layout.addWidget(self.table)
         
+        # Total Summary Section
+        self.summary_frame = QFrame()
+        self.summary_frame.setStyleSheet("""
+            QFrame {
+                background-color: #2c3e50;
+                border-radius: 6px;
+                padding: 4px;
+                margin-top: 3px;
+            }
+        """)
+        summary_layout = QHBoxLayout(self.summary_frame)
+        self.lbl_total_balance = QLabel("Total Customer Balance: ₹0.0")
+        self.lbl_total_balance.setStyleSheet("""
+            font-size: 25px;
+            font-weight: bold;
+            color: #ecf0f1;
+        """)
+        self.lbl_total_balance.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        summary_layout.addStretch()
+        summary_layout.addWidget(self.lbl_total_balance)
+        layout.addWidget(self.summary_frame)
+        
         self.refresh_data()
         
     def refresh_data(self):
         self.table.setRowCount(0)
         customers = self.db.get_all_customers()
         
+        total_balance = 0.0
+        
         for row_idx, row_data in enumerate(customers):
             self.table.insertRow(row_idx)
+            # row_data is typically: id, name, current_balance, opening_balance
+            total_balance += float(row_data[2])
+            
             for col_idx, value in enumerate(row_data):
                 item = QTableWidgetItem(str(value))
                 if col_idx in [2, 3]: # format balance
                     item.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
-                    item.setText(f"{float(value):.2f}")
+                    item.setText(f"{float(value):.1f}")
                 self.table.setItem(row_idx, col_idx, item)
+                
+        # For customers, positive balance usually means they owe us (asset). Let's use green if they owe us (or safe), red if negative (we owe them).
+        color = "#2ecc71" if total_balance >= 0 else "#e74c3c"
+        self.lbl_total_balance.setText(f"Total Customer Balance: ₹{total_balance:.1f}")
+        self.lbl_total_balance.setStyleSheet(f"""
+            font-size: 25px;
+            font-weight: bold;
+            color: {color};
+        """)
                 
     def on_selection_changed(self):
         selected = self.table.selectedItems()

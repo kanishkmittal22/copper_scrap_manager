@@ -799,49 +799,49 @@ class DatabaseManager:
                 return False, f"Error deleting payment received: {str(e)}"
 
     # --- Daily Cash Book Operations ---
-    def get_daily_cash_inflows(self, date):
+    def get_daily_cash_inflows(self, from_date, to_date):
         with self.get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute('''
                 SELECT c.name, p.amount 
                 FROM payments_received p
                 JOIN customers c ON p.customer_id = c.id
-                WHERE p.date = ?
-            ''', (date,))
+                WHERE p.date >= ? AND p.date <= ?
+            ''', (from_date, to_date))
             return cursor.fetchall()
             
-    def get_daily_cash_outflows(self, date):
+    def get_daily_cash_outflows(self, from_date, to_date):
         with self.get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute('''
                 SELECT s.name, p.amount 
                 FROM payments p
                 JOIN suppliers s ON p.supplier_id = s.id
-                WHERE p.date = ?
-            ''', (date,))
+                WHERE p.date >= ? AND p.date <= ?
+            ''', (from_date, to_date))
             return cursor.fetchall()
 
     # --- Daily Inventory Report Operations ---
-    def get_daily_scrap_inward(self, date):
+    def get_daily_scrap_inward(self, from_date, to_date):
         with self.get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute('''
                 SELECT s.name, p.total_weight 
                 FROM procurements p
                 JOIN suppliers s ON p.supplier_id = s.id
-                WHERE p.date = ?
-            ''', (date,))
+                WHERE p.date >= ? AND p.date <= ?
+            ''', (from_date, to_date))
             return cursor.fetchall()
             
-    def get_daily_rod_outward(self, date):
+    def get_daily_rod_outward(self, from_date, to_date):
         with self.get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute('''
                 SELECT c.name, s.total_weight 
                 FROM sales s
                 JOIN customers c ON s.customer_id = c.id
-                WHERE s.date = ?
-            ''', (date,))
+                WHERE s.date >= ? AND s.date <= ?
+            ''', (from_date, to_date))
             return cursor.fetchall()
 
     # --- Sales Ledger Operations ---

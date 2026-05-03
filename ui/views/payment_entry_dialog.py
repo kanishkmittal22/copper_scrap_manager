@@ -49,12 +49,12 @@ class PaymentEntryDialog(QDialog):
         # --- Balances ---
         bal_layout = QGridLayout()
         bal_layout.addWidget(QLabel("Previous Balance:"), 0, 0)
-        self.prev_balance_input = QLineEdit("0.00")
+        self.prev_balance_input = QLineEdit("0.0")
         self.prev_balance_input.setReadOnly(True)
         bal_layout.addWidget(self.prev_balance_input, 0, 1)
         
         bal_layout.addWidget(QLabel("Updated Balance:"), 1, 0)
-        self.new_balance_input = QLineEdit("0.00")
+        self.new_balance_input = QLineEdit("0.0")
         self.new_balance_input.setReadOnly(True)
         bal_layout.addWidget(self.new_balance_input, 1, 1)
         
@@ -118,7 +118,7 @@ class PaymentEntryDialog(QDialog):
         if sup:
             # Payment reduced supplier balance. To revert: add it back.
             prev_balance = sup[2] + data['amount']
-            self.prev_balance_input.setText(f"{prev_balance:.2f}")
+            self.prev_balance_input.setText(f"{prev_balance:.1f}")
             
         self.calculate_balance()
 
@@ -143,9 +143,9 @@ class PaymentEntryDialog(QDialog):
                 else:
                     prev_balance = sup[2]
                     
-                self.prev_balance_input.setText(f"{prev_balance:.2f}")
+                self.prev_balance_input.setText(f"{prev_balance:.1f}")
         else:
-            self.prev_balance_input.setText("0.00")
+            self.prev_balance_input.setText("0.0")
             
         self.calculate_balance()
 
@@ -154,7 +154,7 @@ class PaymentEntryDialog(QDialog):
             amt = float(self.amount_input.text() or 0)
             prev = float(self.prev_balance_input.text())
             # For supplier, payment reduces the balance owed
-            self.new_balance_input.setText(f"{prev - amt:.2f}")
+            self.new_balance_input.setText(f"{prev - amt:.1f}")
         except ValueError:
             pass
 

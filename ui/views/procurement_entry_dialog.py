@@ -113,22 +113,22 @@ class ProcurementEntryDialog(QDialog):
         calc_layout = QGridLayout()
         
         calc_layout.addWidget(QLabel("Net Adjustment:"), 0, 0)
-        self.net_adj_input = QLineEdit("0.00")
+        self.net_adj_input = QLineEdit("0.0")
         self.net_adj_input.setReadOnly(True)
         calc_layout.addWidget(self.net_adj_input, 0, 1)
         
         calc_layout.addWidget(QLabel("Grand Total:"), 0, 2)
-        self.grand_total_input = QLineEdit("0.00")
+        self.grand_total_input = QLineEdit("0.0")
         self.grand_total_input.setReadOnly(True)
         calc_layout.addWidget(self.grand_total_input, 0, 3)
         
         calc_layout.addWidget(QLabel("Previous Balance:"), 1, 0)
-        self.prev_balance_input = QLineEdit("0.00")
+        self.prev_balance_input = QLineEdit("0.0")
         self.prev_balance_input.setReadOnly(True)
         calc_layout.addWidget(self.prev_balance_input, 1, 1)
         
         calc_layout.addWidget(QLabel("New Balance:"), 1, 2)
-        self.new_balance_input = QLineEdit("0.00")
+        self.new_balance_input = QLineEdit("0.0")
         self.new_balance_input.setReadOnly(True)
         calc_layout.addWidget(self.new_balance_input, 1, 3)
         
@@ -214,7 +214,7 @@ class ProcurementEntryDialog(QDialog):
         if sup:
             # Revert current transaction effect to show prev balance accurately
             prev_balance = sup[2] - data['grand_total']
-            self.prev_balance_input.setText(f"{prev_balance:.2f}")
+            self.prev_balance_input.setText(f"{prev_balance:.1f}")
             
         self.calculate_totals()
 
@@ -239,15 +239,15 @@ class ProcurementEntryDialog(QDialog):
                         prev_balance = sup[2]
                 else:
                     prev_balance = sup[2]
-                self.prev_balance_input.setText(f"{prev_balance:.2f}")
+                self.prev_balance_input.setText(f"{prev_balance:.1f}")
         else:
-            self.prev_balance_input.setText("0.00")
+            self.prev_balance_input.setText("0.0")
         
     def calculate_base_amount(self):
         try:
             w = float(self.total_weight_input.text() or 0)
             r = float(self.rate_input.text() or 0)
-            self.base_amount_input.setText(f"{w * r:.2f}")
+            self.base_amount_input.setText(f"{w * r:.1f}")
             self.submit_btn.setEnabled(False)
         except ValueError:
             pass
@@ -256,7 +256,7 @@ class ProcurementEntryDialog(QDialog):
         try:
             w = float(self.item_weight_input.text() or 0)
             r = float(self.item_rate_input.text() or 0)
-            self.item_amount_input.setText(f"{w * r:.2f}")
+            self.item_amount_input.setText(f"{w * r:.1f}")
         except ValueError:
             pass
             
@@ -314,9 +314,9 @@ class ProcurementEntryDialog(QDialog):
             prev_balance = float(self.prev_balance_input.text() or 0)
             new_balance = prev_balance + grand_total
             
-            self.net_adj_input.setText(f"{net_adj:.2f}")
-            self.grand_total_input.setText(f"{grand_total:.2f}")
-            self.new_balance_input.setText(f"{new_balance:.2f}")
+            self.net_adj_input.setText(f"{net_adj:.1f}")
+            self.grand_total_input.setText(f"{grand_total:.1f}")
+            self.new_balance_input.setText(f"{new_balance:.1f}")
             
             self.submit_btn.setEnabled(True)
         except ValueError as e:

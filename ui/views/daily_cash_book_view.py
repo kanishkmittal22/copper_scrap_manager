@@ -17,15 +17,22 @@ class DailyCashBookView(QWidget):
         input_frame = QFrame()
         input_layout = QHBoxLayout(input_frame)
         
-        input_layout.addWidget(QLabel("Date:"))
-        self.date_input = QDateEdit()
-        self.date_input.setDate(QDate.currentDate())
-        self.date_input.setCalendarPopup(True)
-        self.date_input.setDisplayFormat("dd-MM-yyyy")
-        input_layout.addWidget(self.date_input)
+        input_layout.addWidget(QLabel("From:"))
+        self.from_date = QDateEdit()
+        self.from_date.setDate(QDate.currentDate().addMonths(-1))
+        self.from_date.setCalendarPopup(True)
+        self.from_date.setDisplayFormat("dd-MM-yyyy")
+        input_layout.addWidget(self.from_date)
+        
+        input_layout.addWidget(QLabel("To:"))
+        self.to_date = QDateEdit()
+        self.to_date.setDate(QDate.currentDate())
+        self.to_date.setCalendarPopup(True)
+        self.to_date.setDisplayFormat("dd-MM-yyyy")
+        input_layout.addWidget(self.to_date)
         
         input_layout.addWidget(QLabel("Opening Cash Balance:"))
-        self.opening_balance_input = QLineEdit("0.00")
+        self.opening_balance_input = QLineEdit("0.0")
         input_layout.addWidget(self.opening_balance_input)
         
         self.generate_btn = QPushButton("Generate Cash Book")
@@ -91,12 +98,12 @@ class DailyCashBookView(QWidget):
         """)
         calc_layout = QHBoxLayout(calc_frame)
         
-        self.lbl_opening = QLabel("Opening: ₹0.00")
-        self.lbl_inflows = QLabel("Inflows: +₹0.00")
+        self.lbl_opening = QLabel("Opening: ₹0.0")
+        self.lbl_inflows = QLabel("Inflows: +₹0.0")
         self.lbl_inflows.setStyleSheet("color: #2ecc71;")
-        self.lbl_outflows = QLabel("Outflows: -₹0.00")
+        self.lbl_outflows = QLabel("Outflows: -₹0.0")
         self.lbl_outflows.setStyleSheet("color: #e74c3c;")
-        self.lbl_closing = QLabel("Closing Balance: ₹0.00")
+        self.lbl_closing = QLabel("Closing Balance: ₹0.0")
         self.lbl_closing.setStyleSheet("font-size: 22px; color: #f1c40f;")
         
         calc_layout.addWidget(self.lbl_opening)
@@ -108,14 +115,15 @@ class DailyCashBookView(QWidget):
         main_layout.addWidget(calc_frame)
         
     def generate_report(self):
-        date_str = self.date_input.date().toString(Qt.ISODate)
+        from_d = self.from_date.date().toString(Qt.ISODate)
+        to_d = self.to_date.date().toString(Qt.ISODate)
         try:
             opening_balance = float(self.opening_balance_input.text() or 0)
         except ValueError:
             opening_balance = 0.0
             
-        inflows_data = self.db.get_daily_cash_inflows(date_str)
-        outflows_data = self.db.get_daily_cash_outflows(date_str)
+        inflows_data = self.db.get_daily_cash_inflows(from_d, to_d)
+        outflows_data = self.db.get_daily_cash_outflows(from_d, to_d)
         
         total_inflows = self.populate_table(self.inflows_table, inflows_data)
         total_outflows = self.populate_table(self.outflows_table, outflows_data)
@@ -123,10 +131,10 @@ class DailyCashBookView(QWidget):
         closing_balance = opening_balance + total_inflows - total_outflows
         
         # Update summary labels
-        self.lbl_opening.setText(f"Opening: ₹{opening_balance:.2f}")
-        self.lbl_inflows.setText(f"Inflows: +₹{total_inflows:.2f}")
-        self.lbl_outflows.setText(f"Outflows: -₹{total_outflows:.2f}")
-        self.lbl_closing.setText(f"Closing Balance: ₹{closing_balance:.2f}")
+        self.lbl_opening.setText(f"Opening: ₹{opening_balance:.1f}")
+        self.lbl_inflows.setText(f"Inflows: +₹{total_inflows:.1f}")
+        self.lbl_outflows.setText(f"Outflows: -₹{total_outflows:.1f}")
+        self.lbl_closing.setText(f"Closing Balance: ₹{closing_balance:.1f}")
         
     def populate_table(self, table, data):
         # Group data by party name
@@ -147,9 +155,9 @@ class DailyCashBookView(QWidget):
             # Details string (e.g., "(100 + 200)")
             details_str = ""
             if len(amounts) > 1:
-                details_str = "(" + " + ".join(f"{a:.2f}" for a in amounts) + ")"
+                details_str = "(" + " + ".join(f"{a:.1f}" for a in amounts) + ")"
             else:
-                details_str = f"{amounts[0]:.2f}"
+                details_str = f"{amounts[0]:.1f}"
                 
             table.setItem(row_idx, 1, QTableWidgetItem(details_str))
             
@@ -157,7 +165,7 @@ class DailyCashBookView(QWidget):
             party_total = sum(amounts)
             grand_total += party_total
             
-            total_item = QTableWidgetItem(f"{party_total:.2f}")
+            total_item = QTableWidgetItem(f"{party_total:.1f}")
             total_item.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
             table.setItem(row_idx, 2, total_item)
             

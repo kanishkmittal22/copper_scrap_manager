@@ -42,11 +42,11 @@ class SalesLedgerView(QWidget):
         self.gen_btn.clicked.connect(self.generate_ledger)
         controls_layout.addWidget(self.gen_btn)
         
-        self.add_sale_btn = QPushButton("Create Sales Entry")
+        self.add_sale_btn = QPushButton("Create Sales")
         self.add_sale_btn.clicked.connect(self.create_sale)
         controls_layout.addWidget(self.add_sale_btn)
         
-        self.add_pay_btn = QPushButton("Create Payment Received Entry")
+        self.add_pay_btn = QPushButton("Create Payment Received")
         self.add_pay_btn.clicked.connect(self.create_payment)
         controls_layout.addWidget(self.add_pay_btn)
         
@@ -67,9 +67,9 @@ class SalesLedgerView(QWidget):
         # --- Summary Panel ---
         summary_layout = QHBoxLayout()
         
-        self.lbl_tot_sales = QLabel("Total Sales\n₹0.00")
-        self.lbl_tot_pay = QLabel("Total Payment Received\n₹0.00")
-        self.lbl_cur_bal = QLabel("Current Balance\n₹0.00")
+        self.lbl_tot_sales = QLabel("Total Sales\n₹0.0")
+        self.lbl_tot_pay = QLabel("Total Payment Received\n₹0.0")
+        self.lbl_cur_bal = QLabel("Current Balance\n₹0.0")
         
         self.card_style = """
             QLabel {
@@ -113,6 +113,9 @@ class SalesLedgerView(QWidget):
         layout.addLayout(action_layout)
         
     def refresh_data(self):
+        # Store currently selected customer_id to persist state
+        prev_customer_id = self.get_selected_customer_id()
+        
         try:
             self.customer_combo.currentTextChanged.disconnect(self.update_summary)
         except TypeError:
@@ -130,7 +133,15 @@ class SalesLedgerView(QWidget):
         completer.setFilterMode(Qt.MatchContains)
         self.customer_combo.setCompleter(completer)
         
-        self.customer_combo.setCurrentIndex(-1)
+        # Restore previously selected customer if it still exists
+        index = -1
+        if prev_customer_id is not None:
+            for i in range(self.customer_combo.count()):
+                if self.customer_combo.itemData(i) == prev_customer_id:
+                    index = i
+                    break
+                    
+        self.customer_combo.setCurrentIndex(index)
         self.customer_combo.currentTextChanged.connect(self.update_summary)
         self.update_summary()
         
@@ -144,9 +155,9 @@ class SalesLedgerView(QWidget):
     def update_summary(self, *args):
         customer_id = self.get_selected_customer_id()
         if not customer_id:
-            self.lbl_tot_sales.setText("Total Sales\n₹0.00")
-            self.lbl_tot_pay.setText("Total Payment Received\n₹0.00")
-            self.lbl_cur_bal.setText("Current Balance\n₹0.00")
+            self.lbl_tot_sales.setText("Total Sales\n₹0.0")
+            self.lbl_tot_pay.setText("Total Payment Received\n₹0.0")
+            self.lbl_cur_bal.setText("Current Balance\n₹0.0")
             
     def get_selected_entry_info(self):
         selected = self.table.selectedItems()
@@ -234,7 +245,7 @@ class SalesLedgerView(QWidget):
         self.table.setItem(0, 3, QTableWidgetItem(""))
         self.table.setItem(0, 4, QTableWidgetItem(""))
         
-        bal_item = QTableWidgetItem(f"{opening_balance:.2f}")
+        bal_item = QTableWidgetItem(f"{opening_balance:.1f}")
         bal_item.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
         self.table.setItem(0, 5, bal_item)
         
@@ -261,7 +272,7 @@ class SalesLedgerView(QWidget):
             # Formatting Reference Details
             ref_str = ""
             if e_type == "Sale":
-                ref_str = f"{ref} | {weight:.2f} kg @ {rate:.2f}"
+                ref_str = f"{ref} | {weight:.1f} kg @ {rate:.1f}"
                 if remarks and remarks.strip():
                     ref_str += f" | {remarks.strip()}"
             elif e_type == "Payment Received":
@@ -276,19 +287,19 @@ class SalesLedgerView(QWidget):
             self.table.setItem(row, 1, QTableWidgetItem(e_type))
             self.table.setItem(row, 2, QTableWidgetItem(ref_str))
             
-            db_item = QTableWidgetItem(f"{debit:.2f}" if debit > 0 else "")
+            db_item = QTableWidgetItem(f"{debit:.1f}" if debit > 0 else "")
             db_item.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
             if debit > 0:
                 db_item.setForeground(Qt.red) # Debit means they owe us
             self.table.setItem(row, 3, db_item)
             
-            cr_item = QTableWidgetItem(f"{credit:.2f}" if credit > 0 else "")
+            cr_item = QTableWidgetItem(f"{credit:.1f}" if credit > 0 else "")
             cr_item.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
             if credit > 0:
                 cr_item.setForeground(Qt.darkGreen) # Credit means they paid
             self.table.setItem(row, 4, cr_item)
             
-            bal_item = QTableWidgetItem(f"{current_balance:.2f}")
+            bal_item = QTableWidgetItem(f"{current_balance:.1f}")
             bal_item.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
             if current_balance < 0:
                 bal_item.setForeground(Qt.darkGreen) # Negative balance means we owe them
@@ -300,10 +311,10 @@ class SalesLedgerView(QWidget):
         
         color = "#2ecc71" if final_balance > 0 else "#e74c3c" # Green if they owe us (positive), red if good (<= 0)
         
-        self.lbl_tot_sales.setText(f"Total Sales\n₹{total_sales:.2f}")
-        self.lbl_tot_pay.setText(f"Total Payment Received\n₹{total_payment:.2f}")
+        self.lbl_tot_sales.setText(f"Total Sales\n₹{total_sales:.1f}")
+        self.lbl_tot_pay.setText(f"Total Payment Received\n₹{total_payment:.1f}")
         
-        self.lbl_cur_bal.setText(f"Current Balance\n₹{final_balance:.2f}")
+        self.lbl_cur_bal.setText(f"Current Balance\n₹{final_balance:.1f}")
         self.lbl_cur_bal.setStyleSheet(f"""
             QLabel {{
                 background-color: #2c3e50;

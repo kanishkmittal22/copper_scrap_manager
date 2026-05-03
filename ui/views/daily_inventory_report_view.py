@@ -17,19 +17,26 @@ class DailyInventoryReportView(QWidget):
         input_frame = QFrame()
         input_layout = QHBoxLayout(input_frame)
         
-        input_layout.addWidget(QLabel("Date:"))
-        self.date_input = QDateEdit()
-        self.date_input.setDate(QDate.currentDate())
-        self.date_input.setCalendarPopup(True)
-        self.date_input.setDisplayFormat("dd-MM-yyyy")
-        input_layout.addWidget(self.date_input)
+        input_layout.addWidget(QLabel("From:"))
+        self.from_date = QDateEdit()
+        self.from_date.setDate(QDate.currentDate().addMonths(-1))
+        self.from_date.setCalendarPopup(True)
+        self.from_date.setDisplayFormat("dd-MM-yyyy")
+        input_layout.addWidget(self.from_date)
+        
+        input_layout.addWidget(QLabel("To:"))
+        self.to_date = QDateEdit()
+        self.to_date.setDate(QDate.currentDate())
+        self.to_date.setCalendarPopup(True)
+        self.to_date.setDisplayFormat("dd-MM-yyyy")
+        input_layout.addWidget(self.to_date)
         
         input_layout.addWidget(QLabel("Opening Scrap Stock:"))
-        self.opening_scrap_input = QLineEdit("0.00")
+        self.opening_scrap_input = QLineEdit("0.0")
         input_layout.addWidget(self.opening_scrap_input)
         
         input_layout.addWidget(QLabel("Opening Rod Stock:"))
-        self.opening_rod_input = QLineEdit("0.00")
+        self.opening_rod_input = QLineEdit("0.0")
         input_layout.addWidget(self.opening_rod_input)
         
         self.generate_btn = QPushButton("Generate Report")
@@ -101,10 +108,10 @@ class DailyInventoryReportView(QWidget):
         scrap_title.setStyleSheet("color: #3498db; font-size: 18px;")
         scrap_layout.addWidget(scrap_title)
         
-        self.lbl_opening_scrap = QLabel("Opening: 0.00")
-        self.lbl_inward_scrap = QLabel("Purchased: +0.00")
+        self.lbl_opening_scrap = QLabel("Opening: 0.0")
+        self.lbl_inward_scrap = QLabel("Purchased: +0.0")
         self.lbl_inward_scrap.setStyleSheet("color: #2ecc71;")
-        self.lbl_total_scrap = QLabel("Available Scrap: 0.00")
+        self.lbl_total_scrap = QLabel("Available Scrap: 0.0")
         self.lbl_total_scrap.setStyleSheet("font-size: 20px; color: #f1c40f;")
         
         scrap_layout.addWidget(self.lbl_opening_scrap)
@@ -120,10 +127,10 @@ class DailyInventoryReportView(QWidget):
         rod_title.setStyleSheet("color: #e67e22; font-size: 18px;")
         rod_layout.addWidget(rod_title)
         
-        self.lbl_opening_rod = QLabel("Opening: 0.00")
-        self.lbl_outward_rod = QLabel("Sold: -0.00")
+        self.lbl_opening_rod = QLabel("Opening: 0.0")
+        self.lbl_outward_rod = QLabel("Sold: -0.0")
         self.lbl_outward_rod.setStyleSheet("color: #e74c3c;")
-        self.lbl_total_rod = QLabel("Remaining Rods: 0.00")
+        self.lbl_total_rod = QLabel("Remaining Rods: 0.0")
         self.lbl_total_rod.setStyleSheet("font-size: 20px; color: #f1c40f;")
         
         rod_layout.addWidget(self.lbl_opening_rod)
@@ -135,7 +142,8 @@ class DailyInventoryReportView(QWidget):
         main_layout.addWidget(calc_frame)
         
     def generate_report(self):
-        date_str = self.date_input.date().toString(Qt.ISODate)
+        from_d = self.from_date.date().toString(Qt.ISODate)
+        to_d = self.to_date.date().toString(Qt.ISODate)
         try:
             opening_scrap = float(self.opening_scrap_input.text() or 0)
             opening_rod = float(self.opening_rod_input.text() or 0)
@@ -143,8 +151,8 @@ class DailyInventoryReportView(QWidget):
             opening_scrap = 0.0
             opening_rod = 0.0
             
-        scrap_inward_data = self.db.get_daily_scrap_inward(date_str)
-        rod_outward_data = self.db.get_daily_rod_outward(date_str)
+        scrap_inward_data = self.db.get_daily_scrap_inward(from_d, to_d)
+        rod_outward_data = self.db.get_daily_rod_outward(from_d, to_d)
         
         total_scrap_purchased = self.populate_table(self.scrap_table, scrap_inward_data)
         total_rod_sold = self.populate_table(self.rod_table, rod_outward_data)
@@ -153,13 +161,13 @@ class DailyInventoryReportView(QWidget):
         remaining_rod = opening_rod - total_rod_sold
         
         # Update summary labels
-        self.lbl_opening_scrap.setText(f"Opening: {opening_scrap:.2f}")
-        self.lbl_inward_scrap.setText(f"Purchased: +{total_scrap_purchased:.2f}")
-        self.lbl_total_scrap.setText(f"Available Scrap: {available_scrap:.2f}")
+        self.lbl_opening_scrap.setText(f"Opening: {opening_scrap:.1f}")
+        self.lbl_inward_scrap.setText(f"Purchased: +{total_scrap_purchased:.1f}")
+        self.lbl_total_scrap.setText(f"Available Scrap: {available_scrap:.1f}")
         
-        self.lbl_opening_rod.setText(f"Opening: {opening_rod:.2f}")
-        self.lbl_outward_rod.setText(f"Sold: -{total_rod_sold:.2f}")
-        self.lbl_total_rod.setText(f"Remaining Rods: {remaining_rod:.2f}")
+        self.lbl_opening_rod.setText(f"Opening: {opening_rod:.1f}")
+        self.lbl_outward_rod.setText(f"Sold: -{total_rod_sold:.1f}")
+        self.lbl_total_rod.setText(f"Remaining Rods: {remaining_rod:.1f}")
         
     def populate_table(self, table, data):
         # Group data by party name
@@ -180,9 +188,9 @@ class DailyInventoryReportView(QWidget):
             # Details string (e.g., "(100 + 200)")
             details_str = ""
             if len(weights) > 1:
-                details_str = "(" + " + ".join(f"{w:.2f}" for w in weights) + ")"
+                details_str = "(" + " + ".join(f"{w:.1f}" for w in weights) + ")"
             else:
-                details_str = f"{weights[0]:.2f}"
+                details_str = f"{weights[0]:.1f}"
                 
             table.setItem(row_idx, 1, QTableWidgetItem(details_str))
             
@@ -190,7 +198,7 @@ class DailyInventoryReportView(QWidget):
             party_total = sum(weights)
             grand_total += party_total
             
-            total_item = QTableWidgetItem(f"{party_total:.2f}")
+            total_item = QTableWidgetItem(f"{party_total:.1f}")
             total_item.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
             table.setItem(row_idx, 2, total_item)
             

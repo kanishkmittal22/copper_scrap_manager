@@ -68,9 +68,9 @@ class LedgerView(QWidget):
         # --- Summary Panel ---
         summary_layout = QHBoxLayout()
         
-        self.lbl_tot_proc = QLabel("Total Procurement\n₹0.00")
-        self.lbl_tot_pay = QLabel("Total Payment\n₹0.00")
-        self.lbl_cur_bal = QLabel("Current Balance\n₹0.00")
+        self.lbl_tot_proc = QLabel("Total Procurement\n₹0.0")
+        self.lbl_tot_pay = QLabel("Total Payment\n₹0.0")
+        self.lbl_cur_bal = QLabel("Current Balance\n₹0.0")
         
         self.card_style = """
             QLabel {
@@ -115,6 +115,9 @@ class LedgerView(QWidget):
         layout.addLayout(action_layout)
         
     def refresh_data(self):
+        # Store currently selected supplier_id to persist state
+        prev_supplier_id = self.get_selected_supplier_id()
+        
         try:
             self.supplier_combo.currentTextChanged.disconnect(self.update_summary)
         except TypeError:
@@ -132,7 +135,15 @@ class LedgerView(QWidget):
         completer.setFilterMode(Qt.MatchContains)
         self.supplier_combo.setCompleter(completer)
         
-        self.supplier_combo.setCurrentIndex(-1)
+        # Restore previously selected supplier if it still exists
+        index = -1
+        if prev_supplier_id is not None:
+            for i in range(self.supplier_combo.count()):
+                if self.supplier_combo.itemData(i) == prev_supplier_id:
+                    index = i
+                    break
+                    
+        self.supplier_combo.setCurrentIndex(index)
         self.supplier_combo.currentTextChanged.connect(self.update_summary)
         self.update_summary()
         
@@ -146,9 +157,9 @@ class LedgerView(QWidget):
     def update_summary(self, *args):
         supplier_id = self.get_selected_supplier_id()
         if not supplier_id:
-            self.lbl_tot_proc.setText("Total Procurement\n₹0.00")
-            self.lbl_tot_pay.setText("Total Payment\n₹0.00")
-            self.lbl_cur_bal.setText("Current Balance\n₹0.00")
+            self.lbl_tot_proc.setText("Total Procurement\n₹0.0")
+            self.lbl_tot_pay.setText("Total Payment\n₹0.0")
+            self.lbl_cur_bal.setText("Current Balance\n₹0.0")
             
     def get_selected_entry_info(self):
         selected = self.table.selectedItems()
@@ -235,7 +246,7 @@ class LedgerView(QWidget):
         self.table.setItem(0, 3, QTableWidgetItem(""))
         self.table.setItem(0, 4, QTableWidgetItem(""))
         
-        bal_item = QTableWidgetItem(f"{opening_balance:.2f}")
+        bal_item = QTableWidgetItem(f"{opening_balance:.1f}")
         bal_item.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
         self.table.setItem(0, 5, bal_item)
         
@@ -262,7 +273,7 @@ class LedgerView(QWidget):
             # Formatting Reference Details
             ref_str = ""
             if e_type == "Procurement":
-                ref_str = f"{ref} | {weight:.2f} kg @ {rate:.2f}"
+                ref_str = f"{ref} | {weight:.1f} kg @ {rate:.1f}"
                 if remarks and remarks.strip():
                     ref_str += f" | {remarks.strip()}"
             elif e_type == "Payment":
@@ -277,19 +288,19 @@ class LedgerView(QWidget):
             self.table.setItem(row, 1, QTableWidgetItem(e_type))
             self.table.setItem(row, 2, QTableWidgetItem(ref_str))
             
-            db_item = QTableWidgetItem(f"{debit:.2f}" if debit > 0 else "")
+            db_item = QTableWidgetItem(f"{debit:.1f}" if debit > 0 else "")
             db_item.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
             if debit > 0:
                 db_item.setForeground(Qt.red)
             self.table.setItem(row, 3, db_item)
             
-            cr_item = QTableWidgetItem(f"{credit:.2f}" if credit > 0 else "")
+            cr_item = QTableWidgetItem(f"{credit:.1f}" if credit > 0 else "")
             cr_item.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
             if credit > 0:
                 cr_item.setForeground(Qt.darkGreen)
             self.table.setItem(row, 4, cr_item)
             
-            bal_item = QTableWidgetItem(f"{current_balance:.2f}")
+            bal_item = QTableWidgetItem(f"{current_balance:.1f}")
             bal_item.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
             if current_balance < 0:
                 bal_item.setForeground(Qt.darkGreen) # Supplier balance is our liability, negative means they owe us
@@ -301,10 +312,10 @@ class LedgerView(QWidget):
         
         color = "#2ecc71" if final_balance <= 0 else "#e74c3c" # green if we are good, red if we owe them
         
-        self.lbl_tot_proc.setText(f"Total Procurement\n₹{total_procurement:.2f}")
-        self.lbl_tot_pay.setText(f"Total Payment\n₹{total_payment:.2f}")
+        self.lbl_tot_proc.setText(f"Total Procurement\n₹{total_procurement:.1f}")
+        self.lbl_tot_pay.setText(f"Total Payment\n₹{total_payment:.1f}")
         
-        self.lbl_cur_bal.setText(f"Current Balance\n₹{final_balance:.2f}")
+        self.lbl_cur_bal.setText(f"Current Balance\n₹{final_balance:.1f}")
         self.lbl_cur_bal.setStyleSheet(f"""
             QLabel {{
                 background-color: #2c3e50;

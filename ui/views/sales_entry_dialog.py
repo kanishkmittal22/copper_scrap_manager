@@ -51,7 +51,7 @@ class SalesEntryDialog(QDialog):
         grid.addWidget(self.rate_input, 2, 1)
         
         grid.addWidget(QLabel("Total Amount:"), 2, 2)
-        self.total_amount_input = QLineEdit("0.00")
+        self.total_amount_input = QLineEdit("0.0")
         self.total_amount_input.setReadOnly(True)
         grid.addWidget(self.total_amount_input, 2, 3)
         
@@ -64,12 +64,12 @@ class SalesEntryDialog(QDialog):
         # --- Balances ---
         bal_layout = QGridLayout()
         bal_layout.addWidget(QLabel("Previous Balance:"), 0, 0)
-        self.prev_balance_input = QLineEdit("0.00")
+        self.prev_balance_input = QLineEdit("0.0")
         self.prev_balance_input.setReadOnly(True)
         bal_layout.addWidget(self.prev_balance_input, 0, 1)
         
         bal_layout.addWidget(QLabel("Updated Balance:"), 0, 2)
-        self.new_balance_input = QLineEdit("0.00")
+        self.new_balance_input = QLineEdit("0.0")
         self.new_balance_input.setReadOnly(True)
         bal_layout.addWidget(self.new_balance_input, 0, 3)
         
@@ -142,7 +142,7 @@ class SalesEntryDialog(QDialog):
         if cust:
             # Revert current transaction effect to show prev balance accurately
             prev_balance = cust[2] - data['total_amount']
-            self.prev_balance_input.setText(f"{prev_balance:.2f}")
+            self.prev_balance_input.setText(f"{prev_balance:.1f}")
             
         self.calculate_balance()
 
@@ -169,16 +169,16 @@ class SalesEntryDialog(QDialog):
                 else:
                     prev_balance = cust[2]
                     
-                self.prev_balance_input.setText(f"{prev_balance:.2f}")
+                self.prev_balance_input.setText(f"{prev_balance:.1f}")
         else:
-            self.prev_balance_input.setText("0.00")
+            self.prev_balance_input.setText("0.0")
             
     def calculate_total(self):
         self.submit_btn.setEnabled(False)
         try:
             w = float(self.weight_input.text() or 0)
             r = float(self.rate_input.text() or 0)
-            self.total_amount_input.setText(f"{w * r:.2f}")
+            self.total_amount_input.setText(f"{w * r:.1f}")
         except ValueError:
             pass
 
@@ -191,7 +191,7 @@ class SalesEntryDialog(QDialog):
         try:
             total = float(self.total_amount_input.text())
             prev = float(self.prev_balance_input.text())
-            self.new_balance_input.setText(f"{prev + total:.2f}")
+            self.new_balance_input.setText(f"{prev + total:.1f}")
             self.submit_btn.setEnabled(True)
         except ValueError:
             QMessageBox.warning(self, "Calculation Error", "Please ensure weight and rate are valid numbers.")
@@ -275,12 +275,12 @@ class PaymentReceivedDialog(QDialog):
         # --- Balances ---
         bal_layout = QGridLayout()
         bal_layout.addWidget(QLabel("Previous Balance:"), 0, 0)
-        self.prev_balance_input = QLineEdit("0.00")
+        self.prev_balance_input = QLineEdit("0.0")
         self.prev_balance_input.setReadOnly(True)
         bal_layout.addWidget(self.prev_balance_input, 0, 1)
         
         bal_layout.addWidget(QLabel("Updated Balance:"), 1, 0)
-        self.new_balance_input = QLineEdit("0.00")
+        self.new_balance_input = QLineEdit("0.0")
         self.new_balance_input.setReadOnly(True)
         bal_layout.addWidget(self.new_balance_input, 1, 1)
         
@@ -343,7 +343,7 @@ class PaymentReceivedDialog(QDialog):
         cust = self.db.get_customer_by_id(data['customer_id'])
         if cust:
             prev_balance = cust[2] + data['amount']
-            self.prev_balance_input.setText(f"{prev_balance:.2f}")
+            self.prev_balance_input.setText(f"{prev_balance:.1f}")
             
         self.calculate_balance()
 
@@ -368,9 +368,9 @@ class PaymentReceivedDialog(QDialog):
                 else:
                     prev_balance = cust[2]
                     
-                self.prev_balance_input.setText(f"{prev_balance:.2f}")
+                self.prev_balance_input.setText(f"{prev_balance:.1f}")
         else:
-            self.prev_balance_input.setText("0.00")
+            self.prev_balance_input.setText("0.0")
             
         self.calculate_balance()
 
@@ -378,7 +378,7 @@ class PaymentReceivedDialog(QDialog):
         try:
             amt = float(self.amount_input.text() or 0)
             prev = float(self.prev_balance_input.text())
-            self.new_balance_input.setText(f"{prev - amt:.2f}")
+            self.new_balance_input.setText(f"{prev - amt:.1f}")
         except ValueError:
             pass
 
